@@ -1,0 +1,242 @@
+/* Planner tour (src/features/tour.js): a spotlight on the real interface and
+   a short card beside it; plus the one-time offer for people who set the
+   planner up before the tour existed. The same spotlight and card run the
+   first-use guides inside a dialog (src/features/first-use.js,
+   data-kind="guide"). Colours come from the theme tokens. */
+
+:root {
+  --tour-scrim: rgba(31, 27, 22, .42);
+  --tour-ring: color-mix(in srgb, var(--accent) 72%, var(--surface-strong));
+  --tour-glow: rgba(255, 252, 246, .55);
+  --z-tour: 1000;
+}
+
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --tour-scrim: rgba(5, 4, 3, .6);
+    --tour-ring: color-mix(in srgb, var(--accent) 82%, var(--surface-strong));
+    --tour-glow: color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+}
+
+@media screen {
+  :root[data-theme="dark"] {
+    --tour-scrim: rgba(5, 4, 3, .6);
+    --tour-ring: color-mix(in srgb, var(--accent) 82%, var(--surface-strong));
+    --tour-glow: color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+}
+
+/* Pinch-zoom and panning stay free (a zoomed-in phone can zoom out); clicks
+   outside the card go nowhere (tour.js), and none once it is closing. */
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-tour);
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.tour.is-open { opacity: 1; }
+
+.tour:not(.is-open) { pointer-events: none; }
+
+.tour__scrim {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.tour__dim { fill: var(--tour-scrim); }
+
+.tour__hole { fill: #000; }
+
+/* The holes again, filled, under a filter that draws only their outline and
+   a soft glow outside it: one clean shape even where two holes overlap. */
+.tour__ring { fill: #fff; }
+
+.tour__line { flood-color: var(--tour-ring); }
+
+.tour__glow { flood-color: var(--tour-glow); }
+
+.tour.is-open:not(.is-still) .tour__hole,
+.tour.is-open:not(.is-still) .tour__ring { transition: x 300ms cubic-bezier(.22,1,.36,1), y 300ms cubic-bezier(.22,1,.36,1), width 300ms cubic-bezier(.22,1,.36,1), height 300ms cubic-bezier(.22,1,.36,1); }
+
+/* The card: the planner's dialog surface, small and quiet. */
+
+.tour-card {
+  position: fixed;
+  left: 0;
+  top: 0;
+  --tour-card-pad: 12px;
+  width: min(352px, calc(100vw - 24px));
+  padding: 15px 14px var(--tour-card-pad) 17px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  outline: none;
+  /* Scaled from its corner to stay its usual size when the page is zoomed;
+     never taller than the screen (tour.js sets max-height): the text
+     scrolls, the buttons stay. */
+  transform-origin: 0 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.tour.is-open:not(.is-still) .tour-card { transition: transform 320ms cubic-bezier(.22,1,.36,1); }
+
+.tour-card__top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 16px; margin-bottom: 7px; }
+
+.tour-card__eyebrow {
+  margin: 0;
+  color: var(--accent);
+  font-size: .62rem;
+  font-weight: 680;
+  letter-spacing: .078em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.tour-card__dots { display: inline-flex; align-items: center; gap: 4px; }
+
+.tour-card__dots i { width: 5px; height: 5px; border-radius: 99px; background: var(--line-strong); transition: width 220ms cubic-bezier(.22,1,.36,1), background-color 220ms ease; }
+
+.tour-card__dots i.is-done { background: color-mix(in srgb, var(--accent) 50%, var(--line-strong)); }
+
+.tour-card__dots i.is-active { width: 14px; background: var(--accent); }
+
+.tour-card__title { margin: 0; font-size: 1rem; font-weight: 680; line-height: 1.25; letter-spacing: -.022em; text-wrap: balance; }
+
+.tour-card__text { margin: 6px 0 0; color: var(--muted); font-size: .76rem; line-height: 1.56; text-wrap: pretty; }
+
+/* The parts of the screen the step names, as they read there. */
+.tour-card__text strong { color: var(--ink); font-weight: 650; }
+
+.tour-card__keys {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin: 12px 0 0;
+  padding: 11px 0 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+
+.tour-card__keys li { min-width: 0; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .66rem; font-weight: 560; line-height: 1.3; }
+
+.tour-card__keys li.is-wide { grid-column: 1 / -1; }
+
+.tour-card__caps { flex: 0 0 auto; display: inline-flex; gap: 3px; }
+
+.tour-card kbd {
+  min-width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-strong);
+  color: var(--ink);
+  box-shadow: 0 1px 0 var(--line);
+  font: inherit;
+  font-size: .6rem;
+  font-weight: 680;
+  line-height: 1;
+}
+
+.tour-card__hint { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 11px 0 0; color: var(--faint); font-size: .64rem; font-weight: 560; }
+
+.tour-card__hint kbd { min-width: 19px; height: 19px; padding: 0 5px; font-size: .56rem; }
+
+/* Kept at the foot of a card whose text scrolls, over its bottom padding. */
+.tour-card__actions {
+  position: sticky;
+  bottom: calc(-1 * var(--tour-card-pad));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 13px 0 calc(-1 * var(--tour-card-pad));
+  padding-bottom: var(--tour-card-pad);
+  background: var(--surface);
+}
+
+.tour-card__skip { margin-left: -9px; color: var(--faint); }
+
+.tour-card__nav { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+
+.tour-card__nav .primary-button { min-width: 74px; }
+
+@media (max-width: 480px) {
+  .tour-card { --tour-card-pad: 11px; padding: 14px 12px var(--tour-card-pad) 15px; border-radius: 14px; }
+  .tour-card__keys { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* The offer, once, for people who set the planner up before the tour. */
+
+.tour-offer {
+  position: fixed;
+  z-index: calc(var(--z-mobile-dock) + 10);
+  right: 20px;
+  bottom: 20px;
+  width: min(360px, calc(100vw - 24px));
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 0 12px;
+  padding: 14px 13px 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 180ms ease, transform 260ms cubic-bezier(.22,1,.36,1);
+}
+
+.tour-offer:empty { display: none; }
+
+.tour-offer.is-open { opacity: 1; transform: none; }
+
+.tour-offer__icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: var(--soft); color: var(--accent); }
+
+.tour-offer__icon svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+.tour-offer__copy { min-width: 0; }
+
+.tour-offer__eyebrow { margin: 0 0 2px; color: var(--accent); font-size: .6rem; font-weight: 680; letter-spacing: .078em; text-transform: uppercase; }
+
+.tour-offer__copy h2 { margin: 0; font-size: .86rem; font-weight: 680; letter-spacing: -.018em; line-height: 1.25; }
+
+.tour-offer__copy p:last-child { margin: 3px 0 0; color: var(--muted); font-size: .72rem; line-height: 1.5; }
+
+.tour-offer__actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 4px; margin-top: 10px; }
+
+@media (max-width: 790px) {
+  .tour-offer { left: 12px; right: 12px; bottom: calc(var(--mobile-dock-clearance) + 10px); width: auto; }
+  /* On Schedule, above its + button (52px, 10px over the tabs). */
+  body:has(.workspace[data-mobile-active="schedule"]) .tour-offer { bottom: calc(var(--mobile-dock-clearance) + 74px); }
+}
+
+/* The pane heading focus goes back to when nothing better is left (tour.js). */
+[data-tour-return]:focus { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tour,
+  .tour.is-open:not(.is-still) .tour-card,
+  .tour.is-open:not(.is-still) .tour__hole,
+  .tour.is-open:not(.is-still) .tour__ring,
+  .tour-card__dots i,
+  .tour-offer { transition: none; }
+  .tour-offer { transform: none; }
+}
+
+@media print {
+  .tour,
+  .tour-offer { display: none; }
+}

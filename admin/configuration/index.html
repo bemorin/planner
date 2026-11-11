@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <script>(function () { var path = location.pathname, next = null; if (path.slice(-1) === '/' || /\.html?$/i.test(path)) return; try { next = new URL(path + '/' + location.search + location.hash, location.href); } catch (error) { return; } if (next.origin === location.origin) location.replace(next.href); })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="color-scheme" content="light dark">
+  <title>Configuration · Planner owner</title>
+  <link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../../styles.css">
+  <link rel="stylesheet" href="../admin.css">
+  <link rel="stylesheet" href="./configuration.css">
+</head>
+<body class="owner owner-config">
+  <main class="owner-shell">
+    <header class="owner-head">
+      <div>
+        <p class="modal__eyebrow"><a class="cfg-crumb" href="../">Daily Planner · owner</a> · Configuration</p>
+        <h1>Configuration</h1>
+        <p class="owner-sub">Every production setting, checked against its service. Secret values are never shown: only whether they are set, their length and their form.</p>
+      </div>
+      <div class="owner-head__actions" data-cfg-actions hidden>
+        <span class="owner-session" data-cfg-session></span>
+        <a class="secondary-button owner-link-button cfg-head-link" href="../">Dashboard</a>
+        <button class="text-button" type="button" data-cfg-signout>Sign out</button>
+      </div>
+    </header>
+
+    <p class="owner-notice" data-cfg-notice role="status" hidden></p>
+
+    <form class="owner-login" data-cfg-login hidden>
+      <h2>Sign in</h2>
+      <p>Enter the <code>ADMIN_TOKEN</code> of this deployment and, if two-factor is on, the code from your authenticator app. Only a signed session that ends after 8 hours is kept, in this tab — never the token.</p>
+      <label class="form-field"><span>Admin token</span><input type="password" name="token" autocomplete="current-password" required></label>
+      <label class="form-field"><span>Authenticator code</span><input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" placeholder="123456" aria-describedby="cfg-code-hint"><small class="owner-hint" id="cfg-code-hint">Leave empty if two-factor isn’t set up.</small></label>
+      <p class="owner-error" data-cfg-error role="alert" hidden></p>
+      <button class="primary-button" type="submit">Sign in</button>
+    </form>
+
+    <div class="cfg-body" data-cfg-body hidden>
+      <section class="cfg-run" aria-labelledby="cfg-run-title">
+        <div class="cfg-run__intro">
+          <h2 id="cfg-run-title">Check everything</h2>
+          <p data-cfg-status>Not checked yet. The server tries each setting with its service — Resend and the database — with read-only calls side by side, each one 5 seconds at most: the whole check usually takes under 10 seconds. Nothing is changed anywhere.</p>
+        </div>
+        <div class="cfg-run__actions">
+          <button class="primary-button cfg-check" type="button" data-cfg-check><span class="cfg-spinner" aria-hidden="true"></span><span data-cfg-check-label>Check everything</span></button>
+          <button class="secondary-button" type="button" data-cfg-copy disabled>Copy summary</button>
+          <button class="secondary-button" type="button" data-cfg-test-email>Send me a test email</button>
+        </div>
+        <p class="cfg-run__result" data-cfg-result role="status" aria-live="polite"></p>
+        <ul class="cfg-tally" data-cfg-tally aria-label="Totals" hidden></ul>
+        <ul class="cfg-notes" data-cfg-notes hidden></ul>
+      </section>
+
+      <section class="cfg-first" data-cfg-first aria-labelledby="cfg-first-title" tabindex="-1" hidden>
+        <header class="cfg-first__head">
+          <h2 id="cfg-first-title">Fix first</h2>
+          <p data-cfg-first-caption></p>
+        </header>
+        <ol class="cfg-first__list" data-cfg-first-list></ol>
+      </section>
+
+      <div class="cfg-groups" data-cfg-groups aria-busy="false"></div>
+
+      <footer class="cfg-foot">
+        <p>One deployment: production. A preview deployment uses the project’s Preview variables: open this page on its address to check them.</p>
+        <p>What each check does, and what can’t be tested from here: <span data-cfg-docs><code>docs/configuration.md</code>, in the project’s repository</span>.</p>
+      </footer>
+    </div>
+  </main>
+  <script src="../../runtime-config.js"></script>
+  <script type="module" src="./configuration.js"></script>
+</body>
+</html>

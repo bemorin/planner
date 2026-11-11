@@ -1,0 +1,1387 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Daily Planner — free, private planner for your day and year</title>
+  <meta name="description" content="Plan what matters, close the day and keep the year in view. Free and open source, with no account, and it works offline: your plans stay on your device. A guided year plan, quarterly check-ins, Insights and a one-page year in review are part of it.">
+  <link rel="canonical" href="https://planner.bemorin.com/welcome/">
+  <meta name="theme-color" content="#f6f3ed" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#151412" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Daily Planner">
+  <meta property="og:title" content="Daily Planner — plan what matters, close the day, keep the year in view">
+  <meta property="og:description" content="A free, open-source planner for your day, your week and your year. No account, works offline, and your plans stay on your device.">
+  <meta property="og:url" content="https://planner.bemorin.com/welcome/">
+  <meta property="og:image" content="https://planner.bemorin.com/welcome/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Daily Planner: the Day view with a main outcome ticked and a square of the year painted.">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Daily Planner — plan what matters, close the day, keep the year in view">
+  <meta name="twitter:description" content="A free, open-source planner for your day, your week and your year. No account, works offline, and your plans stay on your device.">
+  <meta name="twitter:image" content="https://planner.bemorin.com/welcome/og.png">
+  <meta name="twitter:image:alt" content="Daily Planner: the Day view with a main outcome ticked and a square of the year painted.">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <script>
+    /* Before first paint. The question form lives on the Contact page
+       (/contact/, next to this folder): its old addresses here go there — a
+       question (?ask=question) to the Contact page, without ?ask, ?plan and
+       the #hash (movedAddress in contact-model.js, which landing.js checks
+       again). Any other old ?ask=… simply stays on this page.
+       Only ever to this site: the new address is read against this one and
+       followed only on the same origin (//other.example/welcome/ would make
+       the folder //other.example, another site).
+       Then, when motion is welcome, replicas start on the first frame of their
+       animation and sections below the fold wait to rise in. landing.js adds
+       `js-ready`; if it never runs, the page falls back to its final, fully
+       visible state. */
+    (function () {
+      var here = window.location;
+      var site = here.pathname.replace(/\/(?:index\.html)?$/, '').replace(/\/[^/]*$/, '');
+      var query = null;
+      try { query = new URLSearchParams(here.search); } catch (error) { query = null; }
+      function go(address) {
+        var next = null;
+        try { next = new URL(address, here.href); } catch (error) { next = null; }
+        if (!next || next.origin !== here.origin) return false;
+        here.replace(next.href);
+        return true;
+      }
+      if (query && query.get('ask') === 'question') {
+        query.delete('ask');
+        query.delete('plan');
+        var rest = query.toString();
+        if (go(site + '/contact/' + (rest ? '?' + rest : ''))) return;
+      }
+      var root = document.documentElement;
+      if (!window.matchMedia || !('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      root.classList.add('js-anim');
+      window.setTimeout(function () { if (!root.classList.contains('js-ready')) root.classList.remove('js-anim'); }, 4000);
+    })();
+  </script>
+  <link rel="stylesheet" href="./landing.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Daily Planner",
+    "url": "https://planner.bemorin.com/",
+    "description": "A free, open-source, local-first planner for choosing what matters each day, closing the day without losing unfinished work, and keeping the year in view.",
+    "applicationCategory": "ProductivityApplication",
+    "operatingSystem": "Web, iOS, Android, macOS, Windows",
+    "image": "https://planner.bemorin.com/welcome/og.png",
+    "author": { "@type": "Person", "name": "Ben Morin", "url": "https://bemorin.com/" },
+    "isAccessibleForFree": true,
+    "license": "https://opensource.org/license/mit"
+  }
+  </script>
+  <script src="../runtime-config.js"></script>
+  <script type="module" src="./landing.js"></script>
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m6.5 12.5 3.3 3.3 7.7-8"/></symbol><symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4h11.2L20 7.8V20H4V4z"/><path d="M8 4v4.5h7.5V4M7.5 20v-6.5h9V20"/></symbol><symbol id="i-bin" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-sunset" viewBox="0 0 24 24"><path d="M4 15.5h16"/><path d="M6.2 15.5a5.8 5.8 0 0 1 11.6 0"/><path d="M12 4.2v2.1M5.9 6.7l1.5 1.5M18.1 6.7l-1.5 1.5M3.6 11.1h2.1M18.3 11.1h2.1"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></symbol>
+    <symbol id="i-week" viewBox="0 0 24 24"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/><path d="M8 12h2M12 12h2M16 12h1M8 16h2M12 16h2M16 16h1"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 21c3.6 0 6-2.4 6-5.6 0-3.9-3.1-5.7-3.9-9.4-2 1.4-2.9 3.3-2.9 5.1-1-.7-1.7-1.9-1.9-3.1C7.4 9.6 6 11.9 6 15.4 6 18.6 8.4 21 12 21Z"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20.5h7M9.5 17h5v3.5h-5z"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5.5 21V3.5"/><path d="M5.5 4.5h12l-2.3 4 2.3 4h-12"/></symbol>
+    <symbol id="i-mountain" viewBox="0 0 24 24"><path d="M2.5 19.5h19"/><path d="m4.5 19.5 6-10.5 4.2 7.2"/><path d="m12.8 13.2 2.6-4.2 5.1 10.5"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></symbol>
+    <symbol id="i-sync" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.6-4.5M4 13a8 8 0 0 0 14.6 4.5"/><path d="M5 3v4h4M19 21v-4h-4"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m15.5 15.5 4.1 4.1"/></symbol>
+    <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m14.8 9.2-1.7 3.9-3.9 1.7 1.7-3.9 3.9-1.7Z"/></symbol>
+    <symbol id="i-journal" viewBox="0 0 24 24"><path d="M5 4.5h11.5A2.5 2.5 0 0 1 19 7v12.5H7.5A2.5 2.5 0 0 1 5 17V4.5Z"/><path d="M5 17a2.5 2.5 0 0 1 2.5-2.5H19M9 8h6M9 11h4"/></symbol>
+    <symbol id="i-noaccount" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5.5 19.5a6.5 6.5 0 0 1 9.6-5.7M4 4l16 16"/></symbol>
+    <symbol id="i-offline" viewBox="0 0 24 24"><path d="M4.5 10.6a11 11 0 0 1 3.3-2M12.6 7.5a11 11 0 0 1 6.9 3.1M7.6 14a6 6 0 0 1 4.6-1.5M12 18.5h.01M4 4l16 16"/></symbol>
+    <symbol id="i-install" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="12.5" rx="2"/><path d="M12 8.5v5.5M9.5 11.5 12 14l2.5-2.5M8.5 20h7"/></symbol>
+    <symbol id="i-devices" viewBox="0 0 24 24"><rect x="2.5" y="5" width="13" height="9.5" rx="1.6"/><path d="M1.5 17.5h15"/><rect x="16.5" y="8.5" width="5.5" height="11" rx="1.4"/></symbol>
+    <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3v12M8 11l4 4 4-4M5 20h14"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="m4.5 7 7.5 6 7.5-6"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.5 19 6v5.5c0 4.3-3 7.6-7 9-4-1.4-7-4.7-7-9V6l7-2.5Z"/><path d="m9 12 2.2 2.2L15.5 10"/></symbol>
+    <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V3.5h10V9"/><rect x="3.5" y="9" width="17" height="8" rx="2"/><path d="M7 14h10v6.5H7z"/></symbol>
+    <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3.5 13.5 6 5.5h12l2.5 8v5a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-5Z"/><path d="M3.5 13.5h5l1 2h5l1-2h5"/></symbol>
+    <symbol id="i-stats" viewBox="0 0 24 24"><path d="M5 19.5V11M12 19.5V5M19 19.5v-6"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3.5c.5 4.3 2.2 6 6.5 6.5-4.3.5-6 2.2-6.5 6.5-.5-4.3-2.2-6-6.5-6.5 4.3-.5 6-2.2 6.5-6.5Z"/><path d="M18.5 15.5c.2 1.6.9 2.3 2.5 2.5-1.6.2-2.3.9-2.5 2.5-.2-1.6-.9-2.3-2.5-2.5 1.6-.2 2.3-.9 2.5-2.5Z"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.2 0 1.8-.8 1.8-1.7 0-1.2-1-1.6-1-2.6 0-1 .8-1.7 1.8-1.7h2.2a3.7 3.7 0 0 0 3.7-3.7c0-4.3-3.8-7.3-8.5-7.3Z"/><circle cx="7.8" cy="11.2" r="1"/><circle cx="10.6" cy="7.6" r="1"/><circle cx="15" cy="7.9" r="1"/></symbol>
+    <symbol id="i-pip" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="14" rx="2"/><rect x="11.5" y="10.5" width="7" height="5.5" rx="1"/></symbol>
+    <symbol id="i-laptop" viewBox="0 0 24 24"><path d="M4.8 15.5V7a1.6 1.6 0 0 1 1.6-1.6h11.2A1.6 1.6 0 0 1 19.2 7v8.5"/><path d="M2.6 15.5h18.8l-.9 2.4a1.2 1.2 0 0 1-1.1.8H4.6a1.2 1.2 0 0 1-1.1-.8Z"/></symbol>
+    <symbol id="i-tablet" viewBox="0 0 24 24"><rect x="4.5" y="3" width="15" height="18" rx="2.2"/><path d="M10.8 18h2.4"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2.2"/><path d="M11 18h2"/></symbol>
+    <symbol id="i-checkin" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2.2"/><path d="M8 3v4M16 3v4M4 10h16"/><path d="m9.3 14.7 1.9 1.9 3.6-3.8"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M16.5 3 20 6.5 16.5 10"/><path d="M4 11.5V10a3.5 3.5 0 0 1 3.5-3.5H20"/><path d="M7.5 21 4 17.5 7.5 14"/><path d="M20 12.5V14a3.5 3.5 0 0 1-3.5 3.5H4"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M4.6 12.8A7.5 7.5 0 1 0 6.9 6.6"/><path d="M5.8 3.8v3.6h3.6"/><path d="M12 8.2v4l2.7 1.7"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17"/></symbol>
+    <symbol id="i-day" viewBox="0 0 24 24"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/><path d="M10.5 13 12 11.5V17"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m8.5 7.5-4.5 4.5 4.5 4.5M15.5 7.5l4.5 4.5-4.5 4.5M13.4 5.2l-2.8 13.6"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.4-7.5-10.1A4.4 4.4 0 0 1 12 7.2a4.4 4.4 0 0 1 7.5 2.7C19.5 15.6 12 20 12 20Z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6.5v11M15 6.5v11"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8.5 6.2v11.6a.6.6 0 0 0 .9.5l9.1-5.8a.6.6 0 0 0 0-1L9.4 5.7a.6.6 0 0 0-.9.5Z"/></symbol>
+  </svg>
+
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top" data-top>
+    <div class="wrap top__inner">
+      <a class="brand" href="#top" aria-label="Daily Planner, back to top">
+        <img src="../favicon.svg" alt="" width="28" height="28">
+        <span>Daily Planner</span>
+      </a>
+      <nav class="top__nav" id="top-nav" aria-label="Sections">
+        <a href="#how">How it works</a>
+        <a href="#year">Your year</a>
+        <a href="#open">Open source</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <div class="top__actions">
+        <a class="btn btn--primary btn--sm" href="../?start" data-cta="app">Open the planner</a>
+        <button class="top__menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="top-nav" data-top-menu><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 8.5h15"/><path d="M4.5 15.5h15"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <div class="wrap hero__grid">
+        <div class="hero__copy">
+          <a class="hero__news" href="#ritual"><span class="hero__news-tag">New</span> <span>Plan <span data-plan-year>2027</span> in 30 minutes</span><svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+          <h1 id="hero-title" class="rise-title" aria-label="Plan what matters. Close the day. Keep the year in view."><span aria-hidden="true"><span class="word" style="--w:0"><span>Plan</span></span> <span class="word" style="--w:1"><span>what</span></span> <span class="word" style="--w:2"><span>matters.</span></span></span> <span aria-hidden="true"><span class="word" style="--w:3"><span>Close</span></span> <span class="word" style="--w:4"><span>the</span></span> <span class="word" style="--w:5"><span>day.</span></span></span> <span aria-hidden="true"><span class="word" style="--w:6"><span>Keep</span></span> <span class="word" style="--w:7"><span>the</span></span> <span class="word" style="--w:8"><span>year</span></span> <span class="word" style="--w:9"><span>in</span></span> <span class="word" style="--w:10"><span>view.</span></span></span></h1>
+          <p class="lead">Daily Planner is a calm planner for your day, your week and your year. It’s free and open source, needs no account and works offline. Your plans stay on your device, not on our servers.</p>
+          <div class="cta-row" data-hero-ctas>
+            <a class="btn btn--primary" href="../?start" data-cta="app">Open the planner — it’s free</a>
+            <a class="btn btn--ghost" href="#how">How it works</a>
+          </div>
+          <div class="devices">
+            <span class="devices__icons" aria-hidden="true"><svg class="i devices__laptop"><use href="#i-laptop"/></svg><svg class="i devices__tablet"><use href="#i-tablet"/></svg><svg class="i devices__phone"><use href="#i-phone"/></svg></span>
+            <p><b>On your computer, tablet and phone.</b> <span>Installs like an app, straight from the browser — no app store.</span></p>
+          </div>
+        </div>
+
+        <figure class="hero__visual" data-hero-views>
+          <div class="rp-scale hero-stage">
+            <div class="hero-view hero-view--day is-shown" data-hero-view="day">
+              <div class="rp rp--day s-mit s-block s-closed" data-scene="day" data-final="s-mit s-block s-closed" data-scene-driven data-first-frame aria-hidden="true">
+                <div class="rp-window">
+                  <div class="rp-bar"><i></i><i></i><i></i><span>planner.bemorin.com</span></div>
+                  <div class="rp-top">
+                    <span class="rp-iconbtn"><svg class="i"><use href="#i-week"/></svg></span>
+                    <span class="rp-date"><small>Friday</small><b>October 9, 2026</b></span>
+                    <span class="rp-nav"><svg class="i"><use href="#i-left"/></svg><b>Now</b><svg class="i"><use href="#i-right"/></svg></span>
+                    <span class="rp-tools"><svg class="i"><use href="#i-search"/></svg><svg class="i"><use href="#i-journal"/></svg><svg class="i"><use href="#i-compass"/></svg></span>
+                  </div>
+                  <div class="rp-day">
+                    <div class="rp-plan">
+                      <p class="rp-h">Keep in mind</p>
+                      <p class="rp-focus"><span data-type data-speed="44">Protect the morning for deep work</span><em>e.g. Don’t let urgency drive the decision</em></p>
+                      <p class="rp-h">Most important outcome</p>
+                      <div class="rp-row rp-row--mit rp-tick"><span class="rp-check"><svg class="i"><use href="#i-check"/></svg></span><span class="rp-txt">Send the proposal to Claire</span></div>
+                      <p class="rp-h">Other important outcomes</p>
+                      <div class="rp-row"><span class="rp-check"></span><span class="rp-txt">Draft the offsite agenda</span></div>
+                      <div class="rp-row is-done"><span class="rp-check"><svg class="i"><use href="#i-check"/></svg></span><span class="rp-txt">Review the hiring brief</span></div>
+                      <p class="rp-h rp-optional">Tasks</p>
+                      <div class="rp-row rp-row--task rp-optional is-done"><span class="rp-check"><svg class="i"><use href="#i-check"/></svg></span><span class="rp-txt">Call the bank</span></div>
+                      <div class="rp-row rp-row--task rp-optional"><span class="rp-check"></span><span class="rp-txt">Reorganise the shared drive</span></div>
+                    </div>
+                    <div class="rp-sched">
+                      <div class="rp-sched__head"><b>Schedule</b><span class="rp-closebtn"><svg class="i"><use href="#i-sunset"/></svg>Close day</span></div>
+                      <div class="rp-hours" style="--n:8">
+                        <span style="--h:0"><b>08:00</b></span><span style="--h:1"><b>09:00</b></span><span style="--h:2"><b>10:00</b></span><span style="--h:3"><b>11:00</b></span><span style="--h:4"><b>12:00</b></span><span style="--h:5"><b>13:00</b></span><span style="--h:6"><b>14:00</b></span><span style="--h:7"><b>15:00</b></span><span style="--h:8"><b>16:00</b></span>
+                        <div class="rp-block rp-block--new" style="--s:1;--d:1.5;--c:var(--c-deep)"><b>Proposal — final pass</b><small>Deep work · 1h 30m</small></div>
+                        <div class="rp-block rp-block--short" style="--s:3;--d:.5;--c:var(--c-admin)"><b>Team standup</b><small>11:00–11:30</small></div>
+                        <div class="rp-block rp-block--short" style="--s:4.5;--d:.75;--c:var(--c-health)"><b>Run</b><small>Health · 45m</small></div>
+                        <div class="rp-block" style="--s:6;--d:1.5;--c:var(--c-deep)"><b>Offsite agenda</b><small>Deep work · 1h 30m</small></div>
+                        <div class="rp-now" style="--s:7.6"><span>15:36</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="rp-scrim"></div>
+                  <div class="rp-modal">
+                    <p class="rp-eyebrow">Close day</p>
+                    <p class="rp-modal__title">Close the day without losing unfinished work.</p>
+                    <div class="rp-modal__sum">
+                      <span><small>Done</small><b>3</b></span>
+                      <span><small>Still open</small><b>2</b></span>
+                      <span class="rp-modal__to"><small>Carry to</small><b>Mon, Oct 12</b></span>
+                    </div>
+                    <div class="rp-mis">
+                      <div class="rp-mi rp-mi--save"><span class="rp-mi__body"><b>Draft the offsite agenda</b><small>Other outcome</small></span><span class="rp-mi__chips"><span class="rp-mc rp-mc--date">Mon, Oct 12</span><span class="rp-mc rp-mc--save" data-icon><svg class="i" role="img" aria-label="Save"><use href="#i-save"/></svg></span><span class="rp-mc rp-mc--forget" data-icon><svg class="i" role="img" aria-label="Forget"><use href="#i-bin"/></svg></span></span></div>
+                      <div class="rp-mi rp-mi--forget"><span class="rp-mi__body"><b>Reorganise the shared drive</b><small>Task</small></span><span class="rp-mi__chips"><span class="rp-mc rp-mc--date">Mon, Oct 12</span><span class="rp-mc rp-mc--save" data-icon><svg class="i" role="img" aria-label="Save"><use href="#i-save"/></svg></span><span class="rp-mc rp-mc--forget" data-icon><svg class="i" role="img" aria-label="Forget"><use href="#i-bin"/></svg></span></span></div>
+                    </div>
+                    <span class="rp-modal__field"><small>What made today worth remembering?</small><em class="rp-field"><span data-type data-speed="42">Proposal sent before lunch</span></em></span>
+                    <div class="rp-modal__actions"><span>Cancel</span><span class="rp-primary">Close day</span></div>
+                  </div>
+                </div>
+                <span class="rp-cursor"><i class="rp-cursor__ripple"></i><svg class="rp-cursor__arrow" viewBox="0 0 24 24"><path d="M4.5 2.5v16.6l4.3-4.2 2.9 6.6 3-1.3-2.9-6.5h6.1Z"/></svg></span>
+                <div class="rp-pop rp-pop--closed">
+                  <div class="rp-pop__head"><span>October, painted</span><b><svg class="i"><use href="#i-flame"/></svg><span><span data-count="20" data-from="19">20</span>-day streak</span></b></div>
+                  <div class="rp-month" data-month></div>
+                  <p class="rp-pop__foot"><svg class="i"><use href="#i-trophy"/></svg>Trophy unlocked: <b>A month, unbroken</b></p>
+                </div>
+              </div>
+            </div>
+            <div class="hero-view hero-view--year" data-hero-view="year">
+              <div class="rp rp--horizon s-in s-key s-lived s-step" data-scene="horizon" data-final="s-in s-key s-lived s-step" data-scene-driven aria-hidden="true">
+                <div class="rp-window">
+                  <div class="rp-bar"><i></i><i></i><i></i><span>planner.bemorin.com</span></div>
+                  <div class="rp-top">
+                    <span class="rp-iconbtn"><svg class="i"><use href="#i-compass"/></svg></span>
+                    <span class="rp-date"><small>Horizon</small><b>2026</b></span>
+                    <span class="rp-hz-year"><span class="rp-hz-meter"><i style="--w:77"></i></span><small>Day 282 · 83 days left</small></span>
+                    <span class="rp-hz-add"><svg class="i"><use href="#i-plus"/></svg>Add</span>
+                  </div>
+                  <div class="rp-hz">
+                    <div class="rp-hz-nav">
+                      <span class="rp-hz-pill"></span>
+                      <span class="rp-hz-sec rp-hz-sec--ov" style="--k:var(--accent)"><i><svg class="i"><use href="#i-compass"/></svg></i><span><b>Overview</b><small>77% of the year</small></span><svg class="rp-ring" viewBox="0 0 20 20" style="--p0:77"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="7" pathLength="100"/></svg></span>
+                      <span class="rp-hz-sec rp-hz-sec--step" style="--k:var(--misogi)"><i><svg class="i"><use href="#i-mountain"/></svg></i><span><b>Misogi</b><small><span data-count="3" data-from="2" data-at="step">3</span>/3 milestones</small></span><svg class="rp-ring" viewBox="0 0 20 20" style="--p0:67;--p1:100"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="7" pathLength="100"/></svg></span>
+                      <span class="rp-hz-sec rp-hz-sec--adv" style="--k:var(--adventure)"><i><svg class="i"><use href="#i-flag"/></svg></i><span><b>Mini-adventures</b><small>5 of 6 planned</small></span><svg class="rp-ring" viewBox="0 0 20 20" style="--p0:83"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="7" pathLength="100"/></svg></span>
+                      <span class="rp-hz-sec" style="--k:var(--accent)"><i><svg class="i"><use href="#i-heart"/></svg></i><span><b>Commitments</b><small>3 of 3 written</small></span><svg class="rp-ring" viewBox="0 0 20 20" style="--p0:100"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="7" pathLength="100"/></svg></span>
+                      <span class="rp-hz-sec" style="--k:var(--habit)"><i><svg class="i"><use href="#i-repeat"/></svg></i><span><b>Winning habits</b><small>Q4 · 78% kept</small></span><svg class="rp-ring" viewBox="0 0 20 20" style="--p0:100"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="7" pathLength="100"/></svg></span>
+                      <span class="rp-hz-sec" style="--k:var(--keydate)"><i><svg class="i"><use href="#i-cal"/></svg></i><span><b>Year map</b><small><span data-count="9" data-from="8" data-at="key">9</span> dates</small></span></span>
+                      <span class="rp-hz-sec" style="--k:var(--accent)"><i><svg class="i"><use href="#i-trophy"/></svg></i><span><b>Progress</b><small>20-day streak</small></span><svg class="rp-ring" viewBox="0 0 20 20" style="--p0:60"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="7" pathLength="100"/></svg></span>
+                    </div>
+                    <div class="rp-hz-main">
+                      <div class="rp-hz-ov">
+                        <div class="rp-hz-map">
+                          <span class="rp-eyebrow">Year at a glance</span>
+                          <b class="rp-hz-map__title">Everything that gives the year its shape.</b>
+                          <div class="rp-rib">
+                            <div class="rp-rib__months"><span></span><span>J<b>an</b></span><span>F<b>eb</b></span><span>M<b>ar</b></span><span>A<b>pr</b></span><span>M<b>ay</b></span><span>J<b>un</b></span><span>J<b>ul</b></span><span>A<b>ug</b></span><span>S<b>ep</b></span><span class="is-now">O<b>ct</b></span><span>N<b>ov</b></span><span>D<b>ec</b></span></div>
+                            <div class="rp-rib__lane"><span class="rp-rib__label">Misogi</span><span class="rp-rib__track">
+                              <i class="m m--dia is-done" style="--x:29.3;--k:var(--milestone);--i:1"></i><i class="m m--dia is-done" style="--x:46.6;--k:var(--milestone);--i:2"></i><i class="m m--dia m--step" style="--x:73.7;--k:var(--milestone);--i:3"></i><i class="m m--dot m--big" style="--x:81.4;--k:var(--misogi);--i:4"></i>
+                            </span></div>
+                            <div class="rp-rib__lane"><span class="rp-rib__label">Adventures</span><span class="rp-rib__track">
+                              <i class="m m--dot is-done" style="--x:19.7;--k:var(--adventure);--i:1"></i><i class="m m--dot is-done" style="--x:42.7;--k:var(--adventure);--i:2"></i><i class="m m--dot is-done" style="--x:54.2;--k:var(--adventure);--i:3"></i><i class="m m--dot m--lived" style="--x:75.3;--k:var(--adventure);--i:4"></i><i class="m m--dot" style="--x:88.8;--k:var(--adventure);--i:5"></i>
+                            </span></div>
+                            <div class="rp-rib__lane"><span class="rp-rib__label">Key dates</span><span class="rp-rib__track">
+                              <i class="m m--dot" style="--x:10.1;--k:var(--keydate);--i:0"></i><i class="m m--dot" style="--x:38.9;--k:var(--keydate);--i:2"></i><i class="m m--band" style="--x:58.6;--w:5.2;--k:var(--keydate);--i:3"></i><i class="m m--dot m--new" style="--x:86.8;--k:var(--keydate);--i:5"></i><i class="m m--band" style="--x:97.8;--w:2;--k:var(--keydate);--i:6"></i>
+                              <span class="rp-hz-flag" style="--x:86.8">Mum’s 70th</span>
+                            </span></div>
+                            <div class="rp-rib__lane"><span class="rp-rib__label">Habits</span><span class="rp-rib__quarters">
+                              <span style="--i:0"><b>Q1</b><em>Walk after lunch</em></span><span style="--i:1"><b>Q2</b><em>No phone in the bedroom</em></span><span style="--i:2"><b>Q3</b><em>Write three lines</em></span><span class="is-now" style="--i:3"><b>Q4</b><em>Meditate</em></span>
+                            </span></div>
+                            <div class="rp-rib__today" style="--x:77"><span>Today</span></div>
+                          </div>
+                        </div>
+                        <div class="rp-hz-cards">
+                          <div class="rp-hz-card" style="--k:var(--misogi)">
+                            <span class="rp-hz-card__head"><i><svg class="i"><use href="#i-mountain"/></svg></i><b>Misogi</b><svg class="i"><use href="#i-arrow"/></svg></span>
+                            <b class="rp-hz-card__title">Run my first marathon</b>
+                            <small class="rp-hz-card__meta">Oct 25 · in 16 days</small>
+                            <span class="rp-hz-card__meter"><span class="rp-hz-meter rp-hz-meter--step"><i style="--w:67;--w1:100"></i></span><small><span data-count="3" data-from="2" data-at="step">3</span>/3</small></span>
+                            <span class="rp-hz-item rp-hz-item--step"><span class="rp-check"><svg class="i"><use href="#i-check"/></svg></span><span class="rp-txt">32 km long run</span><em>Sep 27</em></span>
+                          </div>
+                          <div class="rp-hz-card" style="--k:var(--adventure)">
+                            <span class="rp-hz-card__head"><i><svg class="i"><use href="#i-flag"/></svg></i><b>Mini-adventures</b><svg class="i"><use href="#i-arrow"/></svg></span>
+                            <b class="rp-hz-card__title"><span data-count="4" data-from="3" data-at="lived">4</span> of 6 lived</b>
+                            <small class="rp-hz-card__meta">Next: cook for twelve, Nov 21</small>
+                            <span class="rp-hz-dots"><i class="is-done"></i><i class="is-done"></i><i class="is-done"></i><i class="is-planned rp-hz-dot--lived"></i><i class="is-planned"></i><i class="is-idea"></i></span>
+                            <span class="rp-hz-item rp-hz-item--lived"><span class="rp-check"><svg class="i"><use href="#i-check"/></svg></span><span class="rp-txt">Weekend in Lisbon</span><em>Oct 3–4</em></span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="rp-hz-adv" style="--k:var(--adventure)">
+                        <div class="rp-hz-adv__head"><span class="rp-hz-adv__intro"><span class="rp-eyebrow">Mini-adventures</span><b class="rp-hz-adv__title">Six memorable experiences, on the calendar.</b><small>Small enough to happen. Different enough to break the routine.</small></span><span class="rp-hz-adv__stat"><b>5<small>/6</small></b><small>on the calendar · 1 idea</small></span></div>
+                        <div class="rp-hz-advs">
+                          <span class="rp-adv is-done"><span class="rp-adv__top"><span class="rp-adv__status rp-adv__status--done"><svg class="i"><use href="#i-check"/></svg>Lived</span></span><span class="rp-adv__title"><span class="rp-check"><svg class="i"><use href="#i-check"/></svg></span><span class="rp-txt">Sleep in a mountain hut</span></span><span class="rp-adv__date"><svg class="i"><use href="#i-cal"/></svg>Mar 14</span></span>
+                          <span class="rp-adv is-done"><span class="rp-adv__top"><span class="rp-adv__status rp-adv__status--done"><svg class="i"><use href="#i-check"/></svg>Lived</span></span><span class="rp-adv__title"><span class="rp-check"><svg class="i"><use href="#i-check"/></svg></span><span class="rp-txt">Swim before 8am</span></span><span class="rp-adv__date"><svg class="i"><use href="#i-cal"/></svg>Jun 6</span></span>
+                          <span class="rp-adv is-done"><span class="rp-adv__top"><span class="rp-adv__status rp-adv__status--done"><svg class="i"><use href="#i-check"/></svg>Lived</span></span><span class="rp-adv__title"><span class="rp-check"><svg class="i"><use href="#i-check"/></svg></span><span class="rp-txt">Kayak down the Dordogne</span></span><span class="rp-adv__date"><svg class="i"><use href="#i-cal"/></svg>Jul 17</span></span>
+                          <span class="rp-adv rp-adv--lived"><span class="rp-adv__top"><span class="rp-adv__swap"><span class="rp-adv__status rp-adv__status--planned">Planned</span><span class="rp-adv__status rp-adv__status--done"><svg class="i"><use href="#i-check"/></svg>Lived</span></span><em>5 days ago</em></span><span class="rp-adv__title"><span class="rp-check"><svg class="i"><use href="#i-check"/></svg></span><span class="rp-txt">Weekend in Lisbon</span></span><span class="rp-adv__date"><svg class="i"><use href="#i-cal"/></svg>Oct 3–4</span></span>
+                          <span class="rp-adv is-planned"><span class="rp-adv__top"><span class="rp-adv__status rp-adv__status--planned">Planned</span><em>in 43 days</em></span><span class="rp-adv__title"><span class="rp-check"></span><span class="rp-txt">Cook for twelve people</span></span><span class="rp-adv__date"><svg class="i"><use href="#i-cal"/></svg>Nov 21</span></span>
+                          <span class="rp-adv"><span class="rp-adv__top"><span class="rp-adv__status">Idea</span></span><span class="rp-adv__title"><span class="rp-check"></span><span class="rp-txt">Learn to surf</span></span><span class="rp-adv__date rp-adv__date--empty"><svg class="i"><use href="#i-cal"/></svg><span>Put it on the calendar</span></span></span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <span class="rp-cursor"><i class="rp-cursor__ripple"></i><svg class="rp-cursor__arrow" viewBox="0 0 24 24"><path d="M4.5 2.5v16.6l4.3-4.2 2.9 6.6 3-1.3-2.9-6.5h6.1Z"/></svg></span>
+              </div>
+            </div>
+          </div>
+          <div class="hero-switch">
+            <div class="hero-switch__views" role="radiogroup" aria-label="What the planner shows">
+              <span class="hero-switch__thumb" aria-hidden="true"><i class="hero-switch__fill" data-hero-fill></i></span>
+              <label class="hero-switch__view"><input type="radio" name="hero-view" value="day" checked autocomplete="off" data-hero-choice><svg class="i" aria-hidden="true"><use href="#i-day"/></svg><span>Your day</span></label>
+              <label class="hero-switch__view"><input type="radio" name="hero-view" value="year" autocomplete="off" data-hero-choice><svg class="i" aria-hidden="true"><use href="#i-compass"/></svg><span>Your year</span></label>
+            </div>
+            <button class="hero-switch__pause" type="button" data-hero-pause><svg class="i hero-switch__icon-pause" aria-hidden="true"><use href="#i-pause"/></svg><svg class="i hero-switch__icon-play" aria-hidden="true"><use href="#i-play"/></svg><span class="sr-only" data-hero-pause-label>Pause the animation</span></button>
+          </div>
+          <figcaption class="hero-captions">
+            <span data-hero-caption="day">A day in the planner: one thing to keep in mind, one main outcome, a schedule. Closing the day paints a square of your year.</span>
+            <span data-hero-caption="year">Horizon, the year in the planner: one big challenge, six mini-adventures, a habit per quarter and the dates that matter, on one map.</span>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section" id="how" aria-labelledby="how-title">
+      <div class="wrap">
+        <div class="section__intro" data-reveal-each>
+          <h2 id="how-title">One small loop, every day</h2>
+          <p class="lead">Plan in the morning, work from your schedule, close the day in the evening. It takes a few minutes, and nothing unfinished gets lost.</p>
+        </div>
+        <ol class="loop" data-reveal-each>
+          <li><span class="loop__n">1</span><h3>Plan</h3><p>Write one thing to keep in mind, choose the most important outcome and up to two others, then give them time on your schedule.</p></li>
+          <li><span class="loop__n">2</span><h3>Do</h3><p>Work from the schedule. Tick outcomes, tasks and time blocks as they get done.</p></li>
+          <li><span class="loop__n">3</span><h3>Close</h3><p>Review what got done and decide where every unfinished item goes. Then keep a memory and a lesson from the day.</p></li>
+        </ol>
+
+        <div class="split split--visual-first close-split">
+          <div class="split__visual" data-reveal>
+            <div class="rp-scale rp-scale--close">
+              <div class="rp rp--close s-save s-forget s-closed" data-scene="close" data-final="s-save s-forget s-closed" aria-hidden="true">
+                <div class="rp-panel">
+                  <p class="rp-eyebrow">Close day</p>
+                  <p class="rp-title">Close the day without losing unfinished work.</p>
+                  <div class="rp-summary">
+                    <span><small>Done</small><b>4</b></span>
+                    <span><small>Still open</small><b>3</b></span>
+                    <span class="rp-summary__to"><small>Carry to</small><b>Mon, Oct 12</b><i><svg class="i"><use href="#i-down"/></svg></i></span>
+                  </div>
+                  <div class="rp-reflect">
+                    <span><small>What made today worth remembering?</small><em class="rp-field"><span data-type data-speed="38">Lunch outside with the team</span></em></span>
+                    <span><small>What did today teach me?</small><em class="rp-field"><span data-type data-speed="38">Ask for help before noon, not after</span></em></span>
+                  </div>
+                  <p class="rp-listhead"><span>Carry forward</span><span>Mon, Oct 12</span></p>
+                  <div class="rp-items">
+                    <div class="rp-item">
+                      <span class="rp-item__body"><b>Draft the offsite agenda</b><small>Other outcome · Unscheduled</small></span>
+                      <span class="rp-triage"><span class="rp-tri rp-tri--date is-on"><svg class="i"><use href="#i-check"/></svg>Mon, Oct 12<svg class="i"><use href="#i-down"/></svg></span><span class="rp-tri" data-icon><svg class="i" role="img" aria-label="Save"><use href="#i-save"/></svg></span><span class="rp-tri rp-tri--forget" data-icon><svg class="i" role="img" aria-label="Forget"><use href="#i-bin"/></svg></span></span>
+                    </div>
+                    <div class="rp-item rp-item--save">
+                      <span class="rp-item__body"><b>Learn the new invoicing tool</b><small>Task · Unscheduled · Moved 2×</small></span>
+                      <span class="rp-triage"><span class="rp-tri rp-tri--date"><svg class="i"><use href="#i-check"/></svg>Mon, Oct 12<svg class="i"><use href="#i-down"/></svg></span><span class="rp-tri rp-tri--save" data-icon><svg class="i" role="img" aria-label="Save"><use href="#i-save"/></svg></span><span class="rp-tri rp-tri--forget" data-icon><svg class="i" role="img" aria-label="Forget"><use href="#i-bin"/></svg></span></span>
+                    </div>
+                    <div class="rp-item rp-item--forget">
+                      <span class="rp-item__body"><b>Reorganise the shared drive</b><small>Task · Unscheduled</small></span>
+                      <span class="rp-triage"><span class="rp-tri rp-tri--date"><svg class="i"><use href="#i-check"/></svg>Mon, Oct 12<svg class="i"><use href="#i-down"/></svg></span><span class="rp-tri" data-icon><svg class="i" role="img" aria-label="Save"><use href="#i-save"/></svg></span><span class="rp-tri rp-tri--forget" data-icon><svg class="i" role="img" aria-label="Forget"><use href="#i-bin"/></svg></span></span>
+                    </div>
+                  </div>
+                  <div class="rp-actions"><span>Cancel</span><span class="rp-primary">Close day</span></div>
+                </div>
+                <div class="rp-pop rp-pop--next">
+                  <p class="rp-eyebrow">Next planning day</p>
+                  <p class="rp-pop__title">Monday, October 12</p>
+                  <span class="rp-pop__field"><small>Keep in mind</small><em class="rp-field"><span data-type data-speed="40">Start with the offsite agenda</span></em></span>
+                  <span class="rp-pop__btn">Continue to weekly review</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="split__copy" data-reveal-each>
+            <h3 class="h3-lg">Close the day without losing unfinished work</h3>
+            <p>For each unfinished item, you choose:</p>
+            <dl class="choices">
+              <div><dt>Move</dt><dd>to a date you pick. A small “Moved 2×” badge shows what keeps slipping.</dd></div>
+              <div><dt><svg class="i" aria-hidden="true"><use href="#i-save"/></svg>Save</dt><dd>kept without a date in Unresolved: out of the way, not forgotten.</dd></div>
+              <div><dt><svg class="i" aria-hidden="true"><use href="#i-bin"/></svg>Forget</dt><dd>removed from your active work. The day still remembers it.</dd></div>
+            </dl>
+            <p>Then write what made the day worth remembering and what it taught you; together they become your journal. Give the next planning day a little direction, and on Fridays carry on into a short weekly review.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--tint" id="progress" aria-labelledby="progress-title">
+      <div class="wrap">
+        <div class="split split--visual-first">
+          <div class="split__visual" data-reveal>
+            <div class="rp-scale rp-scale--pad">
+              <div class="rp rp--progress s-in s-toast" data-scene="progress" data-final="s-in s-toast" aria-hidden="true">
+                <div class="rp-card">
+                  <div class="rp-stats">
+                    <span><small>Days closed</small><b data-count data-from="0" data-paint-total>0</b><em>This year</em></span>
+                    <span class="rp-stats__streak"><small>Current streak</small><b><svg class="i"><use href="#i-flame"/></svg><span data-count="20" data-from="0">20</span><i>days</i></b><em>Close today to keep it going</em></span>
+                    <span><small>Jokers this month</small><b class="rp-jokers"><i></i><i class="is-left"></i></b><em>1 of 2 left</em></span>
+                    <span><small>Trophies</small><b><span data-count="11" data-from="10">11</span><i>/20</i></b><em>Next: Thirty outcomes</em></span>
+                  </div>
+                  <div class="rp-paint" data-paint></div>
+                  <ul class="rp-paint__legend"><li class="l1">Closed</li><li class="l2">+ main outcome</li><li class="l3">+ winning habit</li><li class="lj">Joker used</li></ul>
+                </div>
+                <div class="rp-toast"><span class="rp-toast__badge"><svg class="i"><use href="#i-flame"/></svg></span><span><small>Trophy unlocked</small><b>A month, unbroken</b></span></div>
+              </div>
+            </div>
+          </div>
+          <div class="split__copy" data-reveal-each>
+            <h2 id="progress-title">Watch your year paint itself</h2>
+            <p class="lead">Every day you close paints a square of the year: deeper when the main outcome got done, deepest when you also kept your winning habit.</p>
+            <ul class="ticks">
+              <li>A forgiving streak. It only counts your planning days, and two jokers a month cover the days life gets in the way.</li>
+              <li>Twenty trophies, all visible from day one with their progress. They’re earned by what you do in your life, not by time spent in the app.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="trophies" aria-hidden="true" data-reveal>
+          <div class="rp-scale">
+            <div class="rp rp--trophies s-in" data-scene="trophies" data-final="s-in">
+              <div class="rp-trophy is-unlocked" style="--t:var(--misogi)"><span class="rp-trophy__badge"><svg class="i"><use href="#i-flame"/></svg></span><span><b>A month, unbroken</b><small>Unlocked today</small></span></div>
+              <div class="rp-trophy" style="--t:var(--keydate);--p:.8"><span class="rp-trophy__badge"><svg class="i"><use href="#i-target"/></svg><i><svg class="i"><use href="#i-lock"/></svg></i></span><span><b>Thirty outcomes delivered</b><small>Close thirty days with the main outcome done.</small><span class="rp-meter"><i></i><em>24/30</em></span></span></div>
+              <div class="rp-trophy" style="--t:var(--adventure);--p:.6667"><span class="rp-trophy__badge"><svg class="i"><use href="#i-flag"/></svg><i><svg class="i"><use href="#i-lock"/></svg></i></span><span><b>Six adventures lived</b><small>Live all six mini-adventures.</small><span class="rp-meter"><i></i><em>4/6</em></span></span></div>
+              <div class="rp-trophy" style="--t:var(--misogi);--p:0"><span class="rp-trophy__badge"><svg class="i"><use href="#i-mountain"/></svg><i><svg class="i"><use href="#i-lock"/></svg></i></span><span><b>Misogi accomplished</b><small>Complete the challenge that defines your year.</small><span class="rp-meter"><i></i><em>0/1</em></span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="week" aria-labelledby="week-title">
+      <div class="wrap split">
+        <div class="split__copy" data-reveal-each>
+          <h2 id="week-title">Your week, in blocks</h2>
+          <p class="lead">Week view puts your planning days side by side with their time blocks. It’s the same schedule as the Day view, so nothing needs copying.</p>
+          <ul class="ticks">
+            <li>Pick your planning days: Monday to Friday, or whichever days fit your life.</li>
+            <li>Click an empty slot to add a block, click a block to edit it.</li>
+            <li>Today keeps its current-time line; past days step back.</li>
+            <li>Print a one-page landscape week when you want it on paper.</li>
+          </ul>
+        </div>
+        <div class="split__visual" data-reveal>
+          <div class="rp-scale">
+            <div class="rp rp--week s-in" data-scene="week" data-final="s-in" aria-hidden="true">
+              <div class="rp-window">
+                <div class="rp-bar"><i></i><i></i><i></i><span>planner.bemorin.com</span></div>
+                <div class="rp-top">
+                  <span class="rp-iconbtn"><svg class="i"><use href="#i-cal"/></svg></span>
+                  <span class="rp-date"><small>Week 41</small><b>5–9 October 2026</b></span>
+                  <span class="rp-nav"><svg class="i"><use href="#i-left"/></svg><b>Now</b><svg class="i"><use href="#i-right"/></svg></span>
+                  <span class="rp-tools"><svg class="i"><use href="#i-search"/></svg><svg class="i"><use href="#i-journal"/></svg><svg class="i"><use href="#i-compass"/></svg></span>
+                </div>
+                <div class="rp-wk">
+                  <div class="rp-wk__head"><span></span><span class="rp-wk__d1">Mon <b>5</b></span><span class="rp-wk__d2">Tue <b>6</b></span><span>Wed <b>7</b></span><span>Thu <b>8</b></span><span class="is-today">Fri <b>9</b></span></div>
+                  <div class="rp-wk__body">
+                    <div class="rp-wk__hours"><span style="--h:0"><b>08:00</b></span><span style="--h:1"><b>09:00</b></span><span style="--h:2"><b>10:00</b></span><span style="--h:3"><b>11:00</b></span><span style="--h:4"><b>12:00</b></span><span style="--h:5"><b>13:00</b></span><span style="--h:6"><b>14:00</b></span><span style="--h:7"><b>15:00</b></span><span style="--h:8"><b>16:00</b></span></div>
+                    <div class="rp-wk__col rp-wk__d1 is-past">
+                      <div class="rp-wb" style="--s:1;--d:2;--c:var(--c-deep);--i:0"><b>Quarterly plan</b><small>Deep work</small></div>
+                      <div class="rp-wb" style="--s:4.5;--d:.75;--c:var(--c-health);--i:5"><b>Run</b></div>
+                      <div class="rp-wb" style="--s:6;--d:1;--c:var(--c-admin);--i:10"><b>Inbox zero</b></div>
+                    </div>
+                    <div class="rp-wk__col rp-wk__d2 is-past">
+                      <div class="rp-wb" style="--s:1;--d:1.5;--c:var(--c-deep);--i:1"><b>Proposal draft</b><small>Deep work</small></div>
+                      <div class="rp-wb rp-wb--short" style="--s:3;--d:.5;--c:var(--c-admin);--i:6"><b>Standup</b></div>
+                      <div class="rp-wb" style="--s:6.5;--d:1;--c:var(--c-learn);--i:11"><b>Spanish</b></div>
+                    </div>
+                    <div class="rp-wk__col is-past">
+                      <div class="rp-wb" style="--s:.5;--d:2.5;--c:var(--c-deep);--i:2"><b>Hiring brief</b><small>Deep work</small></div>
+                      <div class="rp-wb" style="--s:5;--d:1;--c:var(--c-personal);--i:7"><b>Lunch with Sam</b></div>
+                    </div>
+                    <div class="rp-wk__col is-past">
+                      <div class="rp-wb" style="--s:1;--d:1;--c:var(--c-admin);--i:3"><b>Budget review</b></div>
+                      <div class="rp-wb rp-wb--short" style="--s:3;--d:.5;--c:var(--c-admin);--i:8"><b>Standup</b></div>
+                      <div class="rp-wb" style="--s:4.5;--d:.75;--c:var(--c-health);--i:12"><b>Run</b></div>
+                      <div class="rp-wb" style="--s:6;--d:2;--c:var(--c-deep);--i:14"><b>Offsite plan</b><small>Deep work</small></div>
+                    </div>
+                    <div class="rp-wk__col is-today">
+                      <div class="rp-wb" style="--s:1;--d:1.5;--c:var(--c-deep);--i:4"><b>Proposal — final pass</b><small>Deep work</small></div>
+                      <div class="rp-wb rp-wb--short" style="--s:3;--d:.5;--c:var(--c-admin);--i:9"><b>Team standup</b></div>
+                      <div class="rp-wb" style="--s:4.5;--d:.75;--c:var(--c-health);--i:13"><b>Run</b></div>
+                      <div class="rp-wb" style="--s:6;--d:1.5;--c:var(--c-deep);--i:15"><b>Offsite agenda</b><small>Deep work</small></div>
+                      <div class="rp-now" style="--s:7.6"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--tint" id="tools" aria-labelledby="tools-title">
+      <div class="wrap">
+        <div class="section__intro" data-reveal-each>
+          <h2 id="tools-title">Everything else in the planner, kept small</h2>
+          <p class="lead">Each day you close feeds three quiet tools: a journal of memories and lessons, one short list so nothing unfinished gets lost, and a clear view of where your time went. Nothing to set up.</p>
+        </div>
+        <div class="tools" data-reveal-each>
+          <article class="tool">
+            <div class="rp-scale tool__visual">
+              <div class="rp rp--tool rp--journal s-in s-new" data-scene="journal" data-final="s-in s-new" aria-hidden="true">
+                <div class="rp-sheet">
+                  <p class="rp-sheet__title">Journal</p>
+                  <div class="rp-jr rp-jr--head"><span></span><small>Best memory</small><small>Lesson learned</small></div>
+                  <div class="rp-jr__list">
+                    <div class="rp-jr__new"><div class="rp-jr__clip"><div class="rp-jr is-new"><time>Fri, Oct 9</time><b>Lunch outside with the team</b><span>Ask for help before noon, not after</span></div></div></div>
+                    <div class="rp-jr" style="--i:0"><time>Thu, Oct 8</time><b>Sam’s demo worked the first time</b><span>Write the agenda before the invite</span></div>
+                    <div class="rp-jr" style="--i:1"><time>Wed, Oct 7</time><b>A run along the river at sunrise</b><span>Short runs still count</span></div>
+                    <div class="rp-jr" style="--i:2"><time>Tue, Oct 6</time><b>Finished the hiring brief early</b><span>A rough draft beats a blank page</span></div>
+                    <div class="rp-jr" style="--i:3"><time>Mon, Oct 5</time><b>Dinner with my sister</b><span>Say no to the 6 pm call</span></div>
+                    <div class="rp-jr" style="--i:4"><time>Fri, Oct 2</time><b>Closed the quarter on time</b><span>Do the hard part first</span></div>
+                    <div class="rp-jr" style="--i:5"><time>Thu, Oct 1</time><b>First cold morning swim</b><span>Ask before assuming</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="tool__copy">
+              <h3><svg class="i"><use href="#i-journal"/></svg>Journal</h3>
+              <p>Every closed day adds a line: the date, the best memory and the lesson. It becomes a diary you never had to sit down and write.</p>
+            </div>
+          </article>
+          <article class="tool">
+            <div class="rp-scale tool__visual">
+              <div class="rp rp--tool rp--unres s-plan" data-scene="unresolved" data-final="s-plan" aria-hidden="true">
+                <div class="rp-sheet">
+                  <span class="rp-eyebrow">Unresolved</span>
+                  <p class="rp-sheet__title">Decide what still deserves attention.</p>
+                  <div class="rp-seg">
+                    <span class="rp-seg__btn rp-seg__btn--needs">Needs attention<i><b class="n1">3</b><b class="n2">2</b></i></span>
+                    <span class="rp-seg__btn rp-seg__btn--later">Later<i><b class="n1">2</b><b class="n2">3</b></i></span>
+                  </div>
+                  <div class="rp-ow">
+                    <div class="rp-ow__list rp-ow__list--needs">
+                      <div class="rp-owr rp-owr--plan"><span class="rp-owr__main"><b>Reorganise the shared drive</b><small>Tue, Oct 6 <em>Moved 2×</em></small></span><span class="rp-owr__act"><span class="rp-ob rp-ob--plan"><span class="t1">Plan</span><span class="t2">Mon, Oct 12</span></span><span class="rp-ob" data-icon><svg class="i" role="img" aria-label="Save"><use href="#i-save"/></svg></span><span class="rp-ob" data-icon><svg class="i" role="img" aria-label="Forget"><use href="#i-bin"/></svg></span></span></div>
+                      <div class="rp-owr rp-owr--save"><span class="rp-owr__main"><b>Call the accountant</b><small>Wed, Oct 7</small></span><span class="rp-owr__act"><span class="rp-ob">Plan</span><span class="rp-ob rp-ob--save" data-icon><svg class="i" role="img" aria-label="Save"><use href="#i-save"/></svg></span><span class="rp-ob" data-icon><svg class="i" role="img" aria-label="Forget"><use href="#i-bin"/></svg></span></span></div>
+                      <div class="rp-owr"><span class="rp-owr__main"><b>Update the onboarding doc</b><small>Thu, Oct 8</small></span><span class="rp-owr__act"><span class="rp-ob">Plan</span><span class="rp-ob" data-icon><svg class="i" role="img" aria-label="Save"><use href="#i-save"/></svg></span><span class="rp-ob" data-icon><svg class="i" role="img" aria-label="Forget"><use href="#i-bin"/></svg></span></span></div>
+                    </div>
+                    <div class="rp-ow__list rp-ow__list--later">
+                      <div class="rp-owr rp-owr--saved"><span class="rp-owr__main"><b>Call the accountant</b><small>Saved today</small></span><span class="rp-owr__act"><span class="rp-ob">Plan</span><span class="rp-ob" data-icon><svg class="i" role="img" aria-label="Forget"><use href="#i-bin"/></svg></span></span></div>
+                      <div class="rp-owr"><span class="rp-owr__main"><b>Learn the new invoicing tool</b><small><em>Moved 2×</em></small></span><span class="rp-owr__act"><span class="rp-ob">Plan</span><span class="rp-ob" data-icon><svg class="i" role="img" aria-label="Forget"><use href="#i-bin"/></svg></span></span></div>
+                      <div class="rp-owr"><span class="rp-owr__main"><b>Plan the garden for spring</b><small>Saved Sep 28</small></span><span class="rp-owr__act"><span class="rp-ob">Plan</span><span class="rp-ob" data-icon><svg class="i" role="img" aria-label="Forget"><use href="#i-bin"/></svg></span></span></div>
+                    </div>
+                  </div>
+                  <div class="rp-ow__foot"><span>1 plan ready</span><span class="rp-primary">Confirm plans</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="tool__copy">
+              <h3><svg class="i"><use href="#i-inbox"/></svg>Unresolved</h3>
+              <p>Work that slipped waits in one short list, as Needs attention or Later. For each item: Plan it on a date, Save it, or Forget it.</p>
+            </div>
+          </article>
+          <article class="tool">
+            <div class="rp-scale tool__visual">
+              <div class="rp rp--tool rp--stats s-in s-elapsed" data-scene="stats" data-final="s-in s-elapsed" aria-hidden="true">
+                <div class="rp-sheet">
+                  <span class="rp-eyebrow">Schedule statistics</span>
+                  <p class="rp-sheet__title">How your scheduled time is distributed</p>
+                  <div class="rp-seg"><span class="rp-seg__btn is-on">Day</span><span class="rp-seg__btn">Week</span></div>
+                  <div class="rp-st__cards">
+                    <span><small>Elapsed schedule</small><b>4h 15m</b></span>
+                    <span><small>Scheduled</small><b>5h 45m</b></span>
+                  </div>
+                  <div class="rp-st__rows">
+                    <div class="rp-st" style="--c:var(--c-deep);--s:52.2;--e:52.2;--i:0"><span class="rp-st__head"><b><i></i>Deep work</b><small>3h elapsed · 3h scheduled</small></span><span class="rp-st__bar"><i class="sch"></i><i class="ela"></i></span></div>
+                    <div class="rp-st" style="--c:var(--c-personal);--s:17.4;--e:0;--i:1"><span class="rp-st__head"><b><i></i>Personal</b><small>0m elapsed · 1h scheduled</small></span><span class="rp-st__bar"><i class="sch"></i><i class="ela"></i></span></div>
+                    <div class="rp-st" style="--c:var(--c-health);--s:13;--e:13;--i:2"><span class="rp-st__head"><b><i></i>Health</b><small>45m elapsed · 45m scheduled</small></span><span class="rp-st__bar"><i class="sch"></i><i class="ela"></i></span></div>
+                    <div class="rp-st" style="--c:var(--c-admin);--s:8.7;--e:8.7;--i:3"><span class="rp-st__head"><b><i></i>Admin</b><small>30m elapsed · 30m scheduled</small></span><span class="rp-st__bar"><i class="sch"></i><i class="ela"></i></span></div>
+                    <div class="rp-st" style="--c:var(--c-learn);--s:8.7;--e:0;--i:4"><span class="rp-st__head"><b><i></i>Learning</b><small>0m elapsed · 30m scheduled</small></span><span class="rp-st__bar"><i class="sch"></i><i class="ela"></i></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="tool__copy">
+              <h3><svg class="i"><use href="#i-stats"/></svg>Time stats</h3>
+              <p>See where the day went, by category: what you scheduled and what has already happened. Switch to Week for the bigger picture.</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="minis" data-reveal-each>
+          <article class="mini">
+            <div class="rp-scale mini__visual">
+              <div class="rp rp--mini rp--search s-res" data-scene="search" data-final="s-res" aria-hidden="true">
+                <div class="rp-mini-sheet">
+                  <span class="rp-search"><svg class="i"><use href="#i-search"/></svg><span data-type data-speed="80">offsite</span></span>
+                  <div class="rp-res">
+                    <span style="--i:0"><small>Tue, Oct 6 · Outcome</small><b>Draft the <mark>offsite</mark> agenda</b></span>
+                    <span style="--i:1"><small>Thu, Oct 8 · Schedule</small><b><mark>Offsite</mark> plan</b></span>
+                    <span style="--i:2"><small>Fri, Oct 9 · Lesson</small><b>Book the <mark>offsite</mark> room early</b></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <h3><svg class="i"><use href="#i-search"/></svg>Search</h3>
+            <p>Find anything you wrote, on any day: outcomes, tasks, time blocks, notes, memories and lessons.</p>
+          </article>
+          <article class="mini">
+            <div class="rp-scale mini__visual">
+              <div class="rp rp--mini rp--pip" aria-hidden="true">
+                <div class="rp-desk">
+                  <span class="rp-desk__app"><i></i><i></i><i></i><i></i></span>
+                  <div class="rp-float">
+                    <span class="rp-float__bar"><b>Daily Planner</b><i></i></span>
+                    <span class="rp-float__seg"><span class="is-on">Plan</span><span>Schedule</span></span>
+                    <span class="rp-float__row is-done"><i><svg class="i"><use href="#i-check"/></svg></i>Send the proposal</span>
+                    <span class="rp-float__row"><i></i>Draft the agenda</span>
+                    <span class="rp-float__row"><i></i>Book physio</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <h3><svg class="i"><use href="#i-pip"/></svg>Floating mode</h3>
+            <p>Keep today’s plan and schedule in a small window on top of your other apps, where the browser supports it (Chrome and Edge on a computer).</p>
+          </article>
+          <article class="mini">
+            <div class="rp-scale mini__visual">
+              <div class="rp rp--mini rp--export" aria-hidden="true">
+                <div class="rp-paper">
+                  <span class="rp-paper__page"><b>Friday, October 9</b><i></i><i></i><i class="is-short"></i><i></i><i class="is-short"></i></span>
+                  <span class="rp-paper__actions"><span><svg class="i"><use href="#i-print"/></svg>Print</span><span><svg class="i"><use href="#i-export"/></svg>Markdown</span><span><svg class="i"><use href="#i-export"/></svg>Backup</span></span>
+                </div>
+              </div>
+            </div>
+            <h3><svg class="i"><use href="#i-print"/></svg>Print and export</h3>
+            <p>Print a day or a week on one page, export a day as Markdown, and back up everything to a file whenever you like.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="year" aria-labelledby="year-title">
+      <div class="wrap">
+        <div class="section__intro" data-reveal-each>
+          <h2 id="year-title">Horizon: the year in view</h2>
+          <p class="lead">Days are where work happens; the year is where it adds up. Horizon keeps a few big things on one page you’ll actually open, with the whole year on a single ribbon and a line for today.</p>
+        </div>
+
+        <div class="rp-scale ribbon-wrap" data-reveal>
+          <div class="rp rp--ribbon s-in" data-scene="ribbon" data-final="s-in" aria-hidden="true">
+            <div class="rp-card">
+              <div class="rp-card__head">
+                <span><span class="rp-eyebrow">Year at a glance</span><b class="rp-title">Everything that gives the year its shape.</b></span>
+                <span class="rp-legend"><i class="k-misogi">Misogi</i><i class="k-milestone">Milestone</i><i class="k-adventure">Adventure</i><i class="k-keydate">Key date</i></span>
+              </div>
+              <div class="rp-rib">
+                <div class="rp-rib__months"><span></span><span>J<b>an</b></span><span>F<b>eb</b></span><span>M<b>ar</b></span><span>A<b>pr</b></span><span>M<b>ay</b></span><span>J<b>un</b></span><span>J<b>ul</b></span><span>A<b>ug</b></span><span>S<b>ep</b></span><span class="is-now">O<b>ct</b></span><span>N<b>ov</b></span><span>D<b>ec</b></span></div>
+                <div class="rp-rib__lane"><span class="rp-rib__label">Misogi</span><span class="rp-rib__track">
+                  <i class="m m--dia is-done" style="--x:29.3;--k:var(--milestone);--i:1"></i><i class="m m--dia is-done" style="--x:46.6;--k:var(--milestone);--i:2"></i><i class="m m--dia" style="--x:60;--k:var(--milestone);--i:3"></i><i class="m m--dot m--big" style="--x:81.1;--k:var(--misogi);--i:6"></i>
+                </span></div>
+                <div class="rp-rib__lane"><span class="rp-rib__label">Adventures</span><span class="rp-rib__track">
+                  <i class="m m--dot is-done" style="--x:19.7;--k:var(--adventure);--i:1"></i><i class="m m--dot is-done" style="--x:42.7;--k:var(--adventure);--i:2"></i><i class="m m--dot is-done" style="--x:54.2;--k:var(--adventure);--i:3"></i><i class="m m--dot" style="--x:88.8;--k:var(--adventure);--i:6"></i>
+                </span></div>
+                <div class="rp-rib__lane"><span class="rp-rib__label">Key dates</span><span class="rp-rib__track">
+                  <i class="m m--dot" style="--x:10.1;--k:var(--keydate);--i:0"></i><i class="m m--dot" style="--x:38.9;--k:var(--keydate);--i:2"></i><i class="m m--band" style="--x:58.6;--w:5.2;--k:var(--keydate);--i:3"></i><i class="m m--band" style="--x:97.8;--w:2;--k:var(--keydate);--i:7"></i>
+                </span></div>
+                <div class="rp-rib__lane"><span class="rp-rib__label">Habits</span><span class="rp-rib__quarters">
+                  <span style="--i:0"><b>Q1</b><em>Walk after lunch</em></span><span style="--i:1"><b>Q2</b><em>No phone in the bedroom</em></span><span style="--i:2"><b>Q3</b><em>Write three lines</em></span><span class="is-now" style="--i:3"><b>Q4</b><em>Stretch before bed</em></span>
+                </span></div>
+                <div class="rp-rib__today" style="--x:77"><span>Today</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="split split--visual-first year-split">
+          <div class="split__visual" data-reveal>
+            <div class="rp-scale">
+              <div class="rp rp--adv s-planned" data-scene="adventures" data-final="s-planned" aria-hidden="true">
+                <div class="rp-adv__head"><span><span class="rp-eyebrow rp-eyebrow--adv">Mini-adventures</span><b class="rp-title">Six memorable experiences, on the calendar.</b></span><span class="rp-adv__count"><b>4</b>/6</span></div>
+                <div class="rp-slots">
+                  <div class="rp-slot is-lived"><span class="rp-chip">✓ Lived</span><span class="rp-slot__t"><span class="rp-check"><svg class="i"><use href="#i-check"/></svg></span>Sleep in a mountain hut</span><span class="rp-date-chip"><svg class="i"><use href="#i-cal"/></svg>14 Mar</span></div>
+                  <div class="rp-slot is-lived"><span class="rp-chip">✓ Lived</span><span class="rp-slot__t"><span class="rp-check"><svg class="i"><use href="#i-check"/></svg></span>Swim in the sea before 8am</span><span class="rp-date-chip"><svg class="i"><use href="#i-cal"/></svg>6 Jun</span></div>
+                  <div class="rp-slot is-planned"><span class="rp-chip rp-chip--plan">Planned</span><span class="rp-slot__t"><span class="rp-check"></span>Cook for twelve people</span><span class="rp-date-chip"><svg class="i"><use href="#i-cal"/></svg>21 Nov</span></div>
+                  <div class="rp-slot rp-slot--flip"><span class="rp-chip rp-chip--idea">Idea</span><span class="rp-chip rp-chip--plan">Planned</span><span class="rp-slot__t"><span class="rp-check"></span>Learn to sail</span><span class="rp-date-chip rp-date-chip--ghost">Put it on the calendar</span><span class="rp-date-chip rp-date-chip--set"><svg class="i"><use href="#i-cal"/></svg>12 Dec</span></div>
+                  <div class="rp-slot is-empty"><svg class="i"><use href="#i-plus"/></svg>Add mini-adventure</div>
+                  <div class="rp-slot is-empty is-quiet"><svg class="i"><use href="#i-plus"/></svg>Slot 6</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="split__copy" data-reveal-each>
+            <ul class="kinds">
+              <li style="--k:var(--misogi)"><b>A Misogi.</b> One hard, year-defining challenge, with up to five milestones on the way.</li>
+              <li style="--k:var(--adventure)"><b>Six mini-adventures.</b> Small experiences that break the routine, from idea to planned to lived.</li>
+              <li style="--k:var(--accent)"><b>Three commitments.</b> What deserves a place in your year, in three plain sentences.</li>
+              <li style="--k:var(--habit)"><b>One winning habit per quarter.</b> Tick it when you close the day and watch it hold.</li>
+              <li style="--k:var(--keydate)"><b>A year map.</b> Key dates and periods, month by month, without filling the year with tasks.</li>
+            </ul>
+            <p class="print-note"><svg class="i"><use href="#i-print"/></svg><span><b>Your year on one page.</b> Print it from Horizon and keep it by your desk, where you’ll see it every day.</span></p>
+            <p class="credit">The Misogi, the mini-adventures and the one-habit-per-quarter rhythm come from <a href="https://jesseitzler.com/" rel="noopener">Jesse Itzler</a>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--tint" id="yours" aria-labelledby="yours-title">
+      <div class="wrap split">
+        <div class="split__copy" data-reveal-each>
+          <h2 id="yours-title">Yours, on every device</h2>
+          <p class="lead">On your computer, your tablet and your phone. No sign-up and no subscription: your plans live in your browser, and you decide where else they go.</p>
+          <ul class="features">
+            <li><svg class="i"><use href="#i-noaccount"/></svg><span><b>No account.</b> Open it and start; there’s nothing to sign up for.</span></li>
+            <li><svg class="i"><use href="#i-offline"/></svg><span><b>Works offline.</b> Once loaded, it opens without a connection.</span></li>
+            <li><svg class="i"><use href="#i-install"/></svg><span><b>Installs as an app</b> on iPhone and iPad, Android phones and tablets, Mac and Windows, straight from the browser. No app store.</span></li>
+            <li><svg class="i"><use href="#i-devices"/></svg><span><b>Personal sync, sealed.</b> Connect your own Google Drive or Dropbox and one file there keeps your devices in step, sealed on your device with a passphrase only you know. Nothing is stored on our servers. Without it, each device keeps its own plans.</span></li>
+            <li><svg class="i"><use href="#i-export"/></svg><span><b>Export any time.</b> Back up everything to a file, export a day as Markdown, or print it.</span></li>
+          </ul>
+        </div>
+        <div class="split__visual" data-reveal>
+          <div class="rp-scale">
+            <div class="rp rp--sync s-tap s-sync s-done" data-scene="sync" data-final="s-tap s-done" aria-hidden="true">
+              <div class="rp-laptop">
+                <div class="rp-window">
+                  <div class="rp-bar"><i></i><i></i><i></i><span>planner.bemorin.com</span></div>
+                  <div class="rp-mini">
+                    <div class="rp-mini__plan">
+                      <p class="rp-h">Most important outcome</p>
+                      <div class="rp-row rp-row--mit rp-tick rp-tick--laptop"><span class="rp-check"><svg class="i"><use href="#i-check"/></svg></span><span class="rp-txt">Send the proposal to Claire</span></div>
+                      <p class="rp-h">Tasks</p>
+                      <div class="rp-row"><span class="rp-check"></span><span class="rp-txt">Book physio</span></div>
+                      <div class="rp-row"><span class="rp-check"></span><span class="rp-txt">Reply to Sam</span></div>
+                    </div>
+                    <div class="rp-mini__sched"><i style="--s:.4;--d:1.6;--c:var(--c-deep)"></i><i style="--s:2.4;--d:.6;--c:var(--c-admin)"></i><i style="--s:3.6;--d:1;--c:var(--c-health)"></i><i style="--s:5.2;--d:1.6;--c:var(--c-deep)"></i></div>
+                  </div>
+                </div>
+                <span class="rp-laptop__base"></span>
+                <div class="rp-tablet">
+                  <div class="rp-tablet__screen">
+                    <span class="rp-phone__url">planner.bemorin.com</span>
+                    <p class="rp-h">Most important outcome</p>
+                    <div class="rp-row rp-row--mit rp-tick rp-tick--tablet"><span class="rp-check"><svg class="i"><use href="#i-check"/></svg></span><span class="rp-txt">Send the proposal to Claire</span></div>
+                    <div class="rp-row"><span class="rp-check"></span><span class="rp-txt">Book physio</span></div>
+                  </div>
+                </div>
+              </div>
+              <span class="rp-syncdot"><svg class="i"><use href="#i-sync"/></svg><small>your cloud</small></span>
+              <div class="rp-phone">
+                <div class="rp-phone__screen">
+                  <span class="rp-phone__url">planner.bemorin.com</span>
+                  <p class="rp-h">Most important outcome</p>
+                  <div class="rp-row rp-row--mit rp-tick rp-tick--phone"><span class="rp-check"><svg class="i"><use href="#i-check"/></svg></span><span class="rp-txt">Send the proposal to Claire</span></div>
+                  <p class="rp-h">Tasks</p>
+                  <div class="rp-row"><span class="rp-check"></span><span class="rp-txt">Book physio</span></div>
+                  <div class="rp-row"><span class="rp-check"></span><span class="rp-txt">Reply to Sam</span></div>
+                  <span class="rp-finger"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="visual-note">With Personal sync connected, tick something on your phone and it shows up on your laptop and tablet. Without it, each device keeps its own plans.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section yearly" id="ritual" aria-labelledby="ritual-title">
+      <div class="wrap">
+        <div class="section__intro" data-reveal-each>
+          <p class="kicker"><svg class="i"><use href="#i-spark"/></svg>The yearly ritual</p>
+          <h2 id="ritual-title">Make <span data-plan-year>2027</span> count.</h2>
+          <p class="lead">A ritual for every year, built into the planner: plan it in a guided half hour, print it and fill it in by hand, check in as each quarter ends, then look back on one page.</p>
+        </div>
+
+        <div class="ritual" data-reveal-each>
+          <ol class="ritual__steps" aria-label="The yearly ritual">
+            <li class="ritual__step"><span class="ritual__icon" aria-hidden="true"><svg class="i"><use href="#i-compass"/></svg></span><span class="ritual__text"><b><span class="ritual__n">1</span>Plan it</b><span>A guided half hour</span></span></li>
+            <li class="ritual__step"><span class="ritual__icon" aria-hidden="true"><svg class="i"><use href="#i-print"/></svg></span><span class="ritual__text"><b><span class="ritual__n">2</span>Print it</b><span>On your desk, filled in by hand all year</span></span></li>
+            <li class="ritual__step"><span class="ritual__icon" aria-hidden="true"><svg class="i"><use href="#i-checkin"/></svg></span><span class="ritual__text"><b><span class="ritual__n">3</span>Check in</b><span>Ten guided minutes as each quarter ends</span></span></li>
+            <li class="ritual__step"><span class="ritual__icon" aria-hidden="true"><svg class="i"><use href="#i-history"/></svg></span><span class="ritual__text"><b><span class="ritual__n">4</span>Look back</b><span>Your year in review on one page, then plan the next</span></span></li>
+          </ol>
+          <p class="ritual__loop"><span><svg class="i" aria-hidden="true"><use href="#i-sync"/></svg>Every year</span></p>
+        </div>
+
+        <div class="split split--visual-first yearly-split">
+          <div class="split__visual" data-reveal>
+            <div class="rp-scale">
+              <div class="rp rp--yp s-1 s-2 s-3 s-4 s-5 s-6 s-7" data-scene="yearplan" data-final="s-1 s-2 s-3 s-4 s-5 s-6 s-7" aria-hidden="true">
+                <div class="rp-yp">
+                  <div class="rp-yp__head">
+                    <span><span class="rp-eyebrow rp-eyebrow--year">Plan your year</span><b class="rp-title"><span data-plan-year>2027</span>, one step at a time</b></span>
+                    <span class="rp-yp__time">About 30 min</span>
+                  </div>
+                  <span class="rp-yp__bar"><i></i></span>
+                  <div class="rp-yp__body">
+                    <ol class="rp-yp__rail">
+                      <li class="yp-step yp-step--1"><i><svg class="i"><use href="#i-check"/></svg></i><span>Misogi</span></li>
+                      <li class="yp-step yp-step--2"><i><svg class="i"><use href="#i-check"/></svg></i><span>Milestones</span></li>
+                      <li class="yp-step yp-step--3"><i><svg class="i"><use href="#i-check"/></svg></i><span>Adventures</span></li>
+                      <li class="yp-step yp-step--4"><i><svg class="i"><use href="#i-check"/></svg></i><span>Commitments</span></li>
+                      <li class="yp-step yp-step--5"><i><svg class="i"><use href="#i-check"/></svg></i><span>Habits</span></li>
+                      <li class="yp-step yp-step--6"><i><svg class="i"><use href="#i-check"/></svg></i><span>Key dates</span></li>
+                      <li class="yp-step yp-step--7"><i><svg class="i"><use href="#i-check"/></svg></i><span>Print</span></li>
+                    </ol>
+                    <div class="rp-yp__panes">
+                      <div class="yp-pane yp-pane--1">
+                        <p class="yp-q">What one challenge would define your year?</p>
+                        <span class="rp-field yp-field"><span data-type data-speed="46">Walk the Camino de Santiago</span></span>
+                        <span class="yp-when"><small>When</small><span class="rp-date-chip yp-pop"><svg class="i"><use href="#i-cal"/></svg>May 3 – May 31</span></span>
+                        <p class="yp-hint">Hard enough that you’re not sure you can do it.</p>
+                      </div>
+                      <div class="yp-pane yp-pane--2">
+                        <p class="yp-q">Milestones on the way</p>
+                        <div class="yp-list">
+                          <span class="yp-row" style="--i:0"><i class="yp-dia"></i><b>Book the flights</b><em>Feb 2</em></span>
+                          <span class="yp-row" style="--i:1"><i class="yp-dia"></i><b>Walk 100 km in one week</b><em>Mar 21</em></span>
+                          <span class="yp-row" style="--i:2"><i class="yp-dia"></i><b>Test the gear on a weekend</b><em>Apr 11</em></span>
+                        </div>
+                      </div>
+                      <div class="yp-pane yp-pane--3">
+                        <p class="yp-q">Six mini-adventures</p>
+                        <div class="yp-tiles">
+                          <span style="--i:0">Sleep in a mountain hut</span>
+                          <span style="--i:1">Swim before 8am</span>
+                          <span style="--i:2">Cook for twelve people</span>
+                          <span style="--i:3">Learn to sail</span>
+                          <span style="--i:4">A night under the stars</span>
+                          <span style="--i:5">A day without a phone</span>
+                        </div>
+                      </div>
+                      <div class="yp-pane yp-pane--4">
+                        <p class="yp-q">Three commitments</p>
+                        <div class="yp-list">
+                          <span class="yp-row" style="--i:0"><i class="yp-num">1</i><b>Home for dinner four nights a week</b></span>
+                          <span class="yp-row" style="--i:1"><i class="yp-num">2</i><b>Read one book a month</b></span>
+                          <span class="yp-row" style="--i:2"><i class="yp-num">3</i><b>Fewer projects, done better</b></span>
+                        </div>
+                      </div>
+                      <div class="yp-pane yp-pane--5">
+                        <p class="yp-q">One winning habit per quarter</p>
+                        <div class="yp-quarters">
+                          <span style="--i:0"><b>Q1</b>Walk after lunch</span>
+                          <span style="--i:1"><b>Q2</b>No phone in the bedroom</span>
+                          <span style="--i:2"><b>Q3</b>Write three lines</span>
+                          <span style="--i:3"><b>Q4</b>Stretch before bed</span>
+                        </div>
+                      </div>
+                      <div class="yp-pane yp-pane--6">
+                        <p class="yp-q">Key dates and periods</p>
+                        <span class="yp-months"><i style="--x:18.8;--i:0"></i><i style="--x:46.8;--i:1"></i><i class="is-band" style="--x:58.6;--w:5;--i:2"></i><i style="--x:88.2;--i:3"></i></span>
+                        <div class="yp-list">
+                          <span class="yp-row" style="--i:0"><i class="yp-dot"></i><b>Team offsite in Lisbon</b><em>Mar 9 – 11</em></span>
+                          <span class="yp-row" style="--i:1"><i class="yp-dot"></i><b>Sam’s wedding</b><em>Jun 20</em></span>
+                          <span class="yp-row" style="--i:2"><i class="yp-dot"></i><b>Summer break</b><em>Aug 2 – 20</em></span>
+                        </div>
+                      </div>
+                      <div class="yp-pane yp-pane--7">
+                        <p class="yp-q">Your year is planned.</p>
+                        <div class="yp-sheet">
+                          <span class="yp-sheet__row"><small>Misogi</small><b>Walk the Camino de Santiago</b><em>May</em></span>
+                          <span class="yp-sheet__row"><small>Milestones</small><span class="yp-sheet__marks"><i class="yp-dia"></i><i class="yp-dia"></i><i class="yp-dia"></i></span><em>3</em></span>
+                          <span class="yp-sheet__row"><small>Adventures</small><span class="yp-sheet__marks"><i></i><i></i><i></i><i></i><i></i><i></i></span><em>6</em></span>
+                          <span class="yp-sheet__row"><small>Habits</small><span class="yp-sheet__qs"><i>Q1</i><i>Q2</i><i>Q3</i><i>Q4</i></span></span>
+                        </div>
+                        <span class="yp-print"><svg class="i"><use href="#i-print"/></svg>Print your year</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="split__copy" data-reveal-each>
+            <p class="ritual-tag">Step 1 · Plan it</p>
+            <h3 class="h3-lg">Plan your year</h3>
+            <p>A guided session sets up Horizon for the whole year in about 30 minutes, one question at a time:</p>
+            <ol class="steps">
+              <li>Your Misogi, and when it happens</li>
+              <li>Milestones on the way</li>
+              <li>Six mini-adventures</li>
+              <li>Three commitments</li>
+              <li>A winning habit for each quarter</li>
+              <li>Key dates and periods</li>
+            </ol>
+            <p>It ends with <b>Print your year</b>: the whole plan on one page, for your desk.</p>
+          </div>
+        </div>
+
+        <div class="split yearly-split">
+          <div class="split__copy" data-reveal-each>
+            <p class="ritual-tag">Step 2 · Print it</p>
+            <h3 class="h3-lg">Print it, fill it in by hand</h3>
+            <p>Your year on one landscape page: the Misogi and its milestones, six mini-adventures, three commitments, a habit for each quarter and twelve small months with your key dates.</p>
+            <ul class="ticks">
+              <li>What you haven’t planned yet prints as lines and boxes, ready for a pen.</li>
+              <li>Keep it on your desk. Tick milestones, circle dates and add what comes up as the year goes.</li>
+            </ul>
+            <p class="print-note"><svg class="i"><use href="#i-print"/></svg><span><b>One landscape page.</b> The guided session ends with it, and Horizon prints it again whenever you like.</span></p>
+          </div>
+          <div class="split__visual" data-reveal>
+            <div class="rp-scale rp-scale--print">
+              <div class="rp rp--print s-ink" data-scene="print" data-final="s-ink" aria-hidden="true">
+                <div class="rp-pp">
+                  <div class="rp-pp__head">
+                    <span class="rp-pp__title"><small>Horizon · Year map</small><b data-plan-year>2027</b></span>
+                    <span class="rp-pp__legend"><i class="k-misogi">Misogi</i><i class="k-milestone">Milestone</i><i class="k-adventure">Mini-adventure</i><i class="k-keydate">Key date</i></span>
+                  </div>
+                  <div class="rp-pp__body">
+                    <div class="rp-pp__side">
+                      <div class="rp-pp__card">
+                        <p class="rp-pp__h">Misogi</p>
+                        <p class="rp-pp__misogi"><span class="rp-pp__box"></span><b>Walk the Camino de Santiago</b></p>
+                        <p class="rp-pp__when"><small>When</small>May 3 – May 31</p>
+                        <p class="rp-pp__sub">Milestones</p>
+                        <ol class="rp-pp__list">
+                          <li><span class="rp-pp__box"><svg class="pen pen--tick" viewBox="0 0 20 20" style="--pen:0"><path pathLength="1" d="M3.6 10.6c1.4 1.3 2.5 2.7 3.6 4.6 2.6-4.9 5.6-8.6 9.9-12.4"/></svg></span><i>1</i><b>Book the flights</b><em>Feb 2</em></li>
+                          <li><span class="rp-pp__box"></span><i>2</i><b>Walk 100 km in one week</b><em>Mar 21</em></li>
+                          <li><span class="rp-pp__box"></span><i>3</i><b>Test the gear on a weekend</b><em>Apr 11</em></li>
+                          <li><span class="rp-pp__box"></span><i>4</i><span class="rp-pp__blank"><svg class="pen pen--note" viewBox="0 0 70 14" preserveAspectRatio="xMinYMax meet" style="--pen:2"><path pathLength="1" d="M1 10.9c.2-.1 1-.3 1.4-.6c.5-.4 1.1-1.2 1.6-1.6c.4-.5 .9-1.1 1.2-1.3c.3-.2 .5-.2 .7 0c.1 .2 .2 .8 .4 1.2c.1 .5 .2 1.3 .5 1.6c.2 .4 .4 .7 1 .7c.6 0 1.9-.3 2.7-.7c.8-.4 1.5-1.2 1.8-1.7c.4-.6 .4-1.2 .3-1.4c-.1-.2-.6-.2-.9 .1c-.2 .2-.6 .8-.6 1.4c0 .5 .3 1.2 .8 1.6c.5 .4 1.3 .8 2.2 .7c.9-.1 2.1-.7 3.1-1.6c.9-.8 2-2.6 2.5-3.7c.6-1.1 .9-2.5 .9-3c.1-.5-.4-.5-.7 0c-.2 .5-.8 1.9-1 3c-.1 1.1-.1 2.9 .2 3.7c.4 .9 1.7 1.4 2.1 1.6M23.8 11c.5-.3 2-.8 2.9-1.8c.9-.9 2-2.7 2.5-3.8c.6-1.2 .9-2.6 1-3.1c0-.5-.4-.5-.7 0c-.3 .6-.8 1.9-1 3.1c-.2 1.2-.3 2.9 0 3.9c.3 .9 1.3 1.5 1.8 1.7c.6 .1 1-.3 1.5-.7c.5-.4 1.1-1.2 1.5-1.7c.5-.6 .9-1.2 1.2-1.5c.4-.2 .5-.2 .7 .1c.2 .2 .2 .8 .4 1.3c.1 .6 .2 1.4 .4 1.8c.3 .4 .3 .8 1 .8c.6-.1 2-.5 2.8-1c.8-.5 1.5-1.3 1.9-1.9c.4-.6 .4-1.2 .3-1.5c-.1-.2-.6-.3-.8-.1c-.3 .3-.7 1-.7 1.6c0 .6 .2 1.4 .7 1.9c.5 .5 1.9 .8 2.2 .9M46 11.1c.5-.3 2.1-.7 3-1.6c.9-.9 2-2.5 2.5-3.6c.6-1.1 .9-2.5 .9-3c.1-.5-.3-.5-.6 0c-.3 .5-.8 1.9-1 3c-.1 1.1-.1 2.8 .2 3.7c.4 .8 1.2 1.3 2 1.5c.8 .1 2.1-.3 2.9-.8c.8-.4 1.6-1.3 2-1.8c.4-.6 .4-1.2 .3-1.4c-.1-.3-.7-.3-.9-.1c-.3 .3-.7 .9-.7 1.4c0 .6 .3 1.4 .8 1.9c.5 .4 1.8 .8 2.4 .8c.6 0 .9-.4 1.4-.8c.4-.4 1-1.2 1.5-1.7c.4-.5 .8-1.2 1.1-1.4c.3-.2 .5-.2 .7 .1c.1 .2 .1 .8 .3 1.3c.1 .5 .1 1.3 .4 1.7c.2 .4 .7 .7 .8 .8"/></svg></span><em class="rp-pp__dash"></em></li>
+                          <li><span class="rp-pp__box"></span><i>5</i><span class="rp-pp__blank"></span><em class="rp-pp__dash"></em></li>
+                        </ol>
+                      </div>
+                      <div class="rp-pp__card">
+                        <p class="rp-pp__h">Mini-adventures</p>
+                        <ol class="rp-pp__list">
+                          <li><span class="rp-pp__box"><svg class="pen pen--tick" viewBox="0 0 20 20" style="--pen:3"><path pathLength="1" d="M3.4 11.2c1.5 1.1 2.6 2.5 3.8 4.3 2.4-5 5.3-8.8 9.6-12.6"/></svg></span><i>1</i><b>Sleep in a mountain hut</b><em>Mar 14</em></li>
+                          <li><span class="rp-pp__box"></span><i>2</i><b>Swim before 8am</b><em>Jun 6</em></li>
+                          <li><span class="rp-pp__box"></span><i>3</i><b>Cook for twelve people</b><em>Nov 21</em></li>
+                          <li><span class="rp-pp__box"></span><i>4</i><b>Learn to sail</b><em>Idea</em></li>
+                          <li><span class="rp-pp__box"></span><i>5</i><b>A night under the stars</b><em>Idea</em></li>
+                          <li><span class="rp-pp__box"></span><i>6</i><b>A day without a phone</b><em>Idea</em></li>
+                        </ol>
+                      </div>
+                      <div class="rp-pp__card">
+                        <p class="rp-pp__h">Commitments</p>
+                        <ol class="rp-pp__list rp-pp__list--plain">
+                          <li><i>1</i><b>Home for dinner four nights a week</b></li>
+                          <li><i>2</i><b>Read one book a month</b></li>
+                          <li><i>3</i><b>Fewer projects, done better</b></li>
+                        </ol>
+                      </div>
+                      <div class="rp-pp__card">
+                        <p class="rp-pp__h">Winning habits</p>
+                        <ol class="rp-pp__list rp-pp__list--habits">
+                          <li><i>Q1</i><b>Walk after lunch</b></li>
+                          <li><i>Q2</i><b>No phone in the bedroom</b></li>
+                          <li><i>Q3</i><b>Write three lines</b></li>
+                          <li><i>Q4</i><b>Stretch before bed</b></li>
+                        </ol>
+                      </div>
+                    </div>
+                    <div class="rp-pp__months" data-print-months></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="split split--visual-first yearly-split">
+          <div class="split__visual" data-reveal>
+            <div class="rp-scale rp-scale--quarter">
+              <div class="rp rp--quarter s-in s-bars s-notes s-ink" data-scene="quarter" data-final="s-in s-bars s-notes s-ink" aria-hidden="true">
+                <div class="rp-qp">
+                  <div class="rp-qp__mast">
+                    <div class="rp-qp__titles">
+                      <p class="rp-qp__period">1 July – 30 September <span data-plan-year data-year-offset="-1">2026</span></p>
+                      <p class="rp-qp__title">Q3 <span data-plan-year data-year-offset="-1">2026</span><span class="rp-qp__sub">, in review</span></p>
+                    </div>
+                    <p class="rp-qp__lead"><span data-q-text="closed">63</span> days closed, a mini-adventure lived and 238 h scheduled.</p>
+                  </div>
+                  <div class="rp-qp__band rp-qp__band--paint">
+                    <div class="rp-qp__figs">
+                      <span class="rp-qp__fig"><b data-count data-from="0" data-q="closed">63</b><span><strong>Days closed</strong><small>of <span data-q-text="planning">66</span> planning days</small></span></span>
+                      <span class="rp-qp__fig"><b><span data-count data-from="0" data-q="rate">95</span><small>%</small></b><span><strong>Close rate</strong><small>of planning days closed</small></span></span>
+                      <span class="rp-qp__fig rp-qp__fig--streak"><b><svg class="i"><use href="#i-flame"/></svg><span data-count data-from="0" data-q="streak">34</span><small>days</small></b><span><strong>Best streak</strong><small>Planning days in a row</small></span></span>
+                      <span class="rp-qp__fig"><b data-count data-from="0" data-q="mits">44</b><span><strong>Main outcomes done</strong><small>On <span data-q-text="mit-share">70</span>% of closed days</small></span></span>
+                      <span class="rp-qp__fig"><b><span data-count data-from="0" data-q="habit">54</span><small>%</small></b><span><strong>Habit kept</strong><small><span data-q-text="kept">50</span> of 92 days</small></span></span>
+                    </div>
+                    <div class="rp-qp__paint">
+                      <p class="rp-qp__h">The quarter, painted<span><span data-q-text="squares">63</span> squares, one per closed day</span></p>
+                      <div class="rp-qp__months" data-quarter-months></div>
+                      <ul class="rp-qp__legend"><li class="is-l1">Closed</li><li class="is-l2">+ main outcome</li><li class="is-l3">+ winning habit</li><li class="is-joker">Joker used</li><li class="is-miss">Not closed</li><li class="is-rest">Rest day</li></ul>
+                    </div>
+                    <div class="rp-qp__time">
+                      <p class="rp-qp__h">Where the time went<span>238 h over <span data-q-text="closed">63</span> days</span></p>
+                      <ol class="rp-qp__bars">
+                        <li style="--c:var(--c-deep);--w:100;--i:0"><b>Deep work</b><span>122 h</span><small>51%</small><i></i></li>
+                        <li style="--c:var(--c-admin);--w:41;--i:1"><b>Admin</b><span>50 h</span><small>21%</small><i></i></li>
+                        <li style="--c:var(--c-health);--w:30;--i:2"><b>Health</b><span>36 h</span><small>15%</small><i></i></li>
+                        <li style="--c:var(--c-personal);--w:16;--i:3"><b>Personal</b><span>19 h</span><small>8%</small><i></i></li>
+                        <li style="--c:var(--c-learn);--w:9;--i:4"><b>Learning</b><span>11 h</span><small>5%</small><i></i></li>
+                      </ol>
+                    </div>
+                  </div>
+                  <div class="rp-qp__band rp-qp__band--story">
+                    <div class="rp-qp__sec rp-qp__habit">
+                      <p class="rp-qp__h rp-qp__h--habit"><svg class="i"><use href="#i-repeat"/></svg>Winning habit<span>Q3</span></p>
+                      <p class="rp-qp__habit-name">Write three lines</p>
+                      <p class="rp-qp__habit-note">Best streak <span data-q-text="habit-streak">5</span> days · tracked from 1 Jul</p>
+                      <ol class="rp-qp__months-bars" data-quarter-habit>
+                        <li style="--w:58;--i:0"><span>Jul</span><i></i><b>58%</b></li>
+                        <li style="--w:52;--i:1"><span>Aug</span><i></i><b>52%</b></li>
+                        <li style="--w:53;--i:2"><span>Sep</span><i></i><b>53%</b></li>
+                      </ol>
+                    </div>
+                    <div class="rp-qp__sec rp-qp__horizon">
+                      <p class="rp-qp__h rp-qp__h--horizon"><svg class="i"><use href="#i-flag"/></svg>In Horizon this quarter<span>1 of 2 milestones · 1 of 1 lived</span></p>
+                      <ul class="rp-qp__checks">
+                        <li class="is-milestone is-done" style="--i:0"><i></i><b>30 km in training</b><em>30 Aug</em></li>
+                        <li class="is-milestone" style="--i:1"><i></i><b>Book the race hotel</b><em>12 Sep</em></li>
+                        <li class="is-adventure is-done" style="--i:2"><i><svg class="i"><use href="#i-check"/></svg></i><b>Kayak to the island</b><em>25 Jul</em></li>
+                      </ul>
+                    </div>
+                    <div class="rp-qp__sec rp-qp__journal">
+                      <p class="rp-qp__h">From the journal<span>2 memories · 2 lessons</span></p>
+                      <ul class="rp-qp__notes">
+                        <li style="--i:0"><time>27 Sep</time><b>Crossing the finish line with Sam</b></li>
+                        <li style="--i:1"><time>27 Jul</time><b>Kayak to the island at dawn</b></li>
+                        <li class="is-lesson" style="--i:2"><time>12 Aug</time><b>Short runs still count</b></li>
+                        <li class="is-lesson" style="--i:3"><time>15 Jul</time><b>Two priorities are plenty</b></li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="rp-qp__band rp-qp__band--checkin">
+                    <div class="rp-qp__answer" style="--i:0">
+                      <p class="rp-qp__h">What went well</p>
+                      <p class="rp-qp__text">The long runs on Sunday mornings. Writing three lines most evenings made the busy weeks easier to read.</p>
+                      <span class="rp-qp__lines"><i><svg class="pen pen--line" viewBox="0 0 70 14" preserveAspectRatio="xMinYMax meet" style="--pen:0"><path pathLength="1" d="M1 10.9c.2-.1 1-.3 1.4-.6c.5-.4 1.1-1.2 1.6-1.6c.4-.5 .9-1.1 1.2-1.3c.3-.2 .5-.2 .7 0c.1 .2 .2 .8 .4 1.2c.1 .5 .2 1.3 .5 1.6c.2 .4 .4 .7 1 .7c.6 0 1.9-.3 2.7-.7c.8-.4 1.5-1.2 1.8-1.7c.4-.6 .4-1.2 .3-1.4c-.1-.2-.6-.2-.9 .1c-.2 .2-.6 .8-.6 1.4c0 .5 .3 1.2 .8 1.6c.5 .4 1.3 .8 2.2 .7c.9-.1 2.1-.7 3.1-1.6c.9-.8 2-2.6 2.5-3.7c.6-1.1 .9-2.5 .9-3c.1-.5-.4-.5-.7 0c-.2 .5-.8 1.9-1 3c-.1 1.1-.1 2.9 .2 3.7c.4 .9 1.7 1.4 2.1 1.6M23.8 11c.5-.3 2-.8 2.9-1.8c.9-.9 2-2.7 2.5-3.8c.6-1.2 .9-2.6 1-3.1c0-.5-.4-.5-.7 0c-.3 .6-.8 1.9-1 3.1c-.2 1.2-.3 2.9 0 3.9c.3 .9 1.3 1.5 1.8 1.7c.6 .1 1-.3 1.5-.7c.5-.4 1.1-1.2 1.5-1.7c.5-.6 .9-1.2 1.2-1.5c.4-.2 .5-.2 .7 .1c.2 .2 .2 .8 .4 1.3c.1 .6 .2 1.4 .4 1.8c.3 .4 .3 .8 1 .8c.6-.1 2-.5 2.8-1c.8-.5 1.5-1.3 1.9-1.9c.4-.6 .4-1.2 .3-1.5c-.1-.2-.6-.3-.8-.1c-.3 .3-.7 1-.7 1.6c0 .6 .2 1.4 .7 1.9c.5 .5 1.9 .8 2.2 .9"/></svg></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    </div>
+                    <div class="rp-qp__answer" style="--i:1">
+                      <p class="rp-qp__h">What I’ll do differently in Q4</p>
+                      <p class="rp-qp__text">No email before the first block. Book the taper weeks before the race.</p>
+                      <span class="rp-qp__lines"><i><svg class="pen pen--line" viewBox="0 0 70 14" preserveAspectRatio="xMinYMax meet" style="--pen:1.6"><path pathLength="1" d="M1 11.1c.5-.3 2.1-.8 3.1-1.8c.9-.9 2-2.7 2.6-3.9c.6-1.2 .9-2.7 .9-3.3c.1-.5-.4-.4-.7 .1c-.2 .5-.9 2-1 3.2c-.2 1.2-.3 3 .1 3.9c.3 1 1.3 1.6 1.9 1.7c.7 .2 1.4-.4 2.1-.8c.6-.5 1.3-1.4 1.7-1.9c.4-.6 .7-1.3 .8-1.6c.1-.3 0-.3-.1-.1c0 .3-.2 1-.2 1.6c.1 .6 .2 1.5 .5 2c.4 .4 1 .8 1.5 .8c.5 0 1-.3 1.5-.7c.6-.5 1.2-1.4 1.7-1.9c.4-.5 .9-1.1 1.2-1.4c.4-.2 .6-.3 .7 0c.2 .2 .2 .8 .4 1.4c.1 .5 .2 1.4 .4 1.9c.3 .4 .4 .8 1 .8c.7 0 2-.4 2.8-.8c.8-.4 1.5-1.3 1.9-1.8c.3-.5 .3-1.1 .2-1.3c-.1-.2-.6-.3-.8-.1c-.3 .3-.7 .9-.7 1.4c0 .6 .3 1.3 .8 1.7c.5 .5 1.9 .8 2.2 .9M30.1 11.1c.5-.3 2.1-.8 3-1.7c1-1 2.1-2.8 2.7-4c.6-1.1 .9-2.6 .9-3.1c.1-.5-.3-.5-.6 0c-.3 .5-.9 2-1 3.2c-.2 1.1-.3 3 .1 3.9c.3 .9 1.1 1.5 1.9 1.7c.8 .2 2.1-.4 2.9-.7c.8-.4 1.6-1.2 1.9-1.7c.4-.5 .4-1.1 .3-1.3c-.1-.3-.7-.3-.9-.1c-.3 .3-.7 .9-.7 1.4c.1 .5 .3 1.3 .9 1.7c.5 .4 2 .6 2.4 .7"/></svg></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    </div>
+                    <div class="rp-qp__next" style="--i:2">
+                      <p class="rp-qp__h rp-qp__h--next"><svg class="i"><use href="#i-arrow"/></svg>Next · Q4<span>October – December</span></p>
+                      <dl>
+                        <div><dt>Winning habit</dt><dd>Stretch before bed</dd></div>
+                        <div><dt>Focus</dt><dd>Run the marathon, then rest properly</dd></div>
+                      </dl>
+                    </div>
+                  </div>
+                  <p class="rp-qp__domain"><span>B</span>planner.bemorin.com</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="split__copy" data-reveal-each>
+            <p class="ritual-tag">Step 3 · Check in</p>
+            <h3 class="h3-lg">Check in every quarter</h3>
+            <p>Ten guided minutes as each quarter ends: see the days you closed and how your winning habit held, answer two honest questions, and set the habit for the next three months.</p>
+            <ul class="ticks">
+              <li>Move what slipped to the next quarter in one tap, or tick what you did.</li>
+              <li>Everything is saved in Horizon as you type, so you can stop and come back.</li>
+            </ul>
+            <p class="print-note"><svg class="i"><use href="#i-print"/></svg><span><b>Then print the quarter on one page,</b> with room to write by hand.</span></p>
+          </div>
+        </div>
+
+        <div class="split yearly-split">
+          <div class="split__copy" data-reveal-each>
+            <p class="ritual-tag">Step 4 · Look back</p>
+            <h3 class="h3-lg">Your year in review</h3>
+            <p>One page for a whole year: days closed, the painted year, your best streak, trophies unlocked, main outcomes done and where your time went. Then how the Misogi, the mini-adventures and the habits turned out, with a few memories and lessons from your journal.</p>
+            <p class="print-note"><svg class="i"><use href="#i-print"/></svg><span><b>It prints on one page.</b> Keep it with the plan it answers, then plan the next year.</span></p>
+          </div>
+          <div class="split__visual" data-reveal>
+            <div class="rp-scale">
+              <div class="rp rp--review s-in s-bars s-notes" data-scene="review" data-final="s-in s-bars s-notes" aria-hidden="true">
+                <div class="rp-rv">
+                  <div class="rp-rv__head">
+                    <span><span class="rp-eyebrow rp-eyebrow--year">Year in review</span><b class="rp-rv__title"><span data-plan-year data-year-offset="-1">2026</span>, in review</b></span>
+                    <span class="rp-rv__print"><svg class="i"><use href="#i-print"/></svg>Print</span>
+                  </div>
+                  <div class="rp-rv__stats">
+                    <span><small>Days closed</small><b data-count data-from="0" data-review-closed>0</b></span>
+                    <span class="rp-rv__streak"><small>Best streak</small><b><svg class="i"><use href="#i-flame"/></svg><span data-count="34" data-from="0">34</span><i>days</i></b></span>
+                    <span><small>Trophies</small><b><span data-count="14" data-from="0">14</span><i>/20</i></b></span>
+                    <span><small>Main outcomes</small><b data-count data-from="0" data-review-mits>0</b></span>
+                  </div>
+                  <div class="rp-paint rp-rv__paint" data-review-paint></div>
+                  <div class="rp-rv__cols">
+                    <div>
+                      <p class="rp-rv__h">Where the time went</p>
+                      <div class="rp-rv__bars">
+                        <span style="--c:var(--c-deep);--w:100;--i:0"><b>Deep work</b><i></i><em>412h</em></span>
+                        <span style="--c:var(--c-admin);--w:57;--i:1"><b>Admin</b><i></i><em>236h</em></span>
+                        <span style="--c:var(--c-personal);--w:41;--i:2"><b>Personal</b><i></i><em>168h</em></span>
+                        <span style="--c:var(--c-health);--w:29;--i:3"><b>Health</b><i></i><em>121h</em></span>
+                        <span style="--c:var(--c-learn);--w:16;--i:4"><b>Learning</b><i></i><em>64h</em></span>
+                      </div>
+                    </div>
+                    <div>
+                      <p class="rp-rv__h">Horizon</p>
+                      <div class="rp-rv__hz">
+                        <span style="--k:var(--misogi);--i:0"><i></i><b>Misogi</b><em>Run a marathon · done</em></span>
+                        <span style="--k:var(--adventure);--i:1"><i></i><b>Mini-adventures</b><em>5 of 6 lived</em></span>
+                        <span style="--k:var(--habit);--i:2"><i></i><b>Winning habits</b><em>3 of 4 quarters kept</em></span>
+                        <span style="--k:var(--accent);--i:3"><i></i><b>Commitments</b><em>Read at the start of each month</em></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="rp-rv__notes">
+                    <p class="rp-rv__h">Memories and lessons</p>
+                    <span style="--i:0"><time>Mar 14</time><b>A night in the mountain hut</b><em>A rough draft beats a blank page</em></span>
+                    <span style="--i:1"><time>Sep 27</time><b>Crossing the finish line with Sam</b><em>Short runs still count</em></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="split split--visual-first yearly-split yearly-split--insights">
+          <div class="split__visual" data-reveal>
+            <div class="rp-scale rp-scale--insights">
+              <div class="rp rp--insights s-in s-bars" data-scene="insights" data-final="s-in s-bars" aria-hidden="true">
+                <div class="rp-ins">
+                  <div class="rp-ins__head">
+                    <span><span class="rp-eyebrow">Insights</span><b class="rp-title">What your days add up to</b></span>
+                    <span class="rp-ins__range"><i>4 weeks</i><i>Quarter</i><i class="is-on">Year</i></span>
+                  </div>
+                  <p class="rp-ins__meta"><span data-plan-year data-year-offset="-1">2026</span> · 214 days closed</p>
+                  <div class="rp-ins__finds">
+                    <p class="rp-ins__h">What stands out</p>
+                    <ul>
+                      <li style="--i:0">Wednesdays and Thursdays are your strongest days: 93% closed.</li>
+                      <li style="--i:1">Most of your deep work happens 9–11.</li>
+                      <li style="--i:2">You finish your main outcome on 73% of the days you set one.</li>
+                      <li style="--i:3">60 more days closed than by this time last year.</li>
+                    </ul>
+                  </div>
+                  <div class="rp-ins__cards">
+                    <div class="rp-ins__card">
+                      <p class="rp-ins__title">Days that work</p>
+                      <p class="rp-ins__sub">Days closed, and main outcomes done, by weekday.</p>
+                      <div class="rp-ins__week">
+                        <span style="--a:86;--b:71;--i:0"><b>Mon</b><i></i><i></i><em>86%<small>71%</small></em></span>
+                        <span style="--a:90;--b:80;--i:1"><b>Tue</b><i></i><i></i><em>90%<small>80%</small></em></span>
+                        <span style="--a:93;--b:68;--i:2"><b>Wed</b><i></i><i></i><em>93%<small>68%</small></em></span>
+                        <span style="--a:93;--b:74;--i:3"><b>Thu</b><i></i><i></i><em>93%<small>74%</small></em></span>
+                        <span style="--a:55;--b:60;--i:4"><b>Fri</b><i></i><i></i><em>55%<small>60%</small></em></span>
+                        <span class="is-rest" style="--a:10;--b:79;--i:5"><b>Sat<small>rest</small></b><i></i><i></i><em>10%<small>79%</small></em></span>
+                        <span class="is-rest" style="--a:5;--b:84;--i:6"><b>Sun<small>rest</small></b><i></i><i></i><em>5%<small>84%</small></em></span>
+                      </div>
+                      <p class="rp-ins__key"><span><i></i>Days closed</span><span><i class="is-b"></i>Main outcome done</span></p>
+                    </div>
+                    <div class="rp-ins__card">
+                      <p class="rp-ins__title">When your time is scheduled</p>
+                      <p class="rp-ins__sub">Average minutes scheduled in each hour, by weekday.</p>
+                      <div class="rp-ins__heat" data-insights-heat></div>
+                      <p class="rp-ins__key rp-ins__key--scale"><span>Less</span><i class="is-l0"></i><i class="is-l1"></i><i class="is-l2"></i><i class="is-l3"></i><i class="is-l4"></i><i class="is-l5"></i><span>More</span></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="split__copy" data-reveal-each>
+            <p class="ritual-tag">All year long</p>
+            <h3 class="h3-lg">Insights</h3>
+            <p>See which weekdays work best for you, when your focus really happens, where your hours go month by month, and how this year compares with the last.</p>
+            <ul class="ticks">
+              <li>In Stats, beside Day and Week, and from Horizon under Progress.</li>
+              <li>A few plain sentences on top, each chart with a table behind it.</li>
+            </ul>
+            <p class="print-note"><svg class="i"><use href="#i-shield"/></svg><span><b>Worked out on your device</b> from the days you close. Nothing is sent anywhere.</span></p>
+          </div>
+        </div>
+
+        <div class="yearly-more" data-reveal-each>
+          <article class="yearly-card yearly-card--paint" data-palette-card data-palette="terracotta" aria-labelledby="palette-title">
+            <div class="pal__head">
+              <h3 id="palette-title"><svg class="i"><use href="#i-palette"/></svg>Colours for your painted year</h3>
+              <p>Six palettes for the year that paints itself. Choose the one you’d like to see every evening.</p>
+            </div>
+            <div class="pal__swatches" role="group" aria-label="Try a palette" data-palette-swatches>
+              <button class="pal-sw pal-sw--terracotta" type="button" data-swatch="terracotta" aria-pressed="true"><span class="pal-sw__ramp" aria-hidden="true"><i></i><i></i><i></i></span><span class="pal-sw__name">Terracotta</span></button>
+              <button class="pal-sw pal-sw--ocean" type="button" data-swatch="ocean" aria-pressed="false"><span class="pal-sw__ramp" aria-hidden="true"><i></i><i></i><i></i></span><span class="pal-sw__name">Ocean</span></button>
+              <button class="pal-sw pal-sw--forest" type="button" data-swatch="forest" aria-pressed="false"><span class="pal-sw__ramp" aria-hidden="true"><i></i><i></i><i></i></span><span class="pal-sw__name">Forest</span></button>
+              <button class="pal-sw pal-sw--plum" type="button" data-swatch="plum" aria-pressed="false"><span class="pal-sw__ramp" aria-hidden="true"><i></i><i></i><i></i></span><span class="pal-sw__name">Plum</span></button>
+              <button class="pal-sw pal-sw--graphite" type="button" data-swatch="graphite" aria-pressed="false"><span class="pal-sw__ramp" aria-hidden="true"><i></i><i></i><i></i></span><span class="pal-sw__name">Graphite</span></button>
+              <button class="pal-sw pal-sw--sunset" type="button" data-swatch="sunset" aria-pressed="false"><span class="pal-sw__ramp" aria-hidden="true"><i></i><i></i><i></i></span><span class="pal-sw__name">Sunset</span></button>
+            </div>
+            <div class="rp-scale pal__preview" data-palette-preview aria-hidden="true">
+              <div class="rp pal-year">
+                <div class="pal-year__head">
+                  <span class="pal-year__title"><small>Your <span data-plan-year data-year-offset="-1">2026</span>, painted in</small><b data-palette-name>Terracotta</b></span>
+                </div>
+                <div class="rp-paint pal-year__grid" data-palette-year></div>
+                <ul class="rp-paint__legend pal-year__legend"><li class="l1">Closed</li><li class="l2">+ main outcome</li><li class="l3">+ winning habit</li></ul>
+              </div>
+            </div>
+          </article>
+          <article class="yearly-card yearly-card--once" aria-labelledby="once-title">
+            <div class="once__devices" aria-hidden="true">
+              <span class="once__device"><svg class="i"><use href="#i-laptop"/></svg><i><svg class="i"><use href="#i-check"/></svg></i></span>
+              <span class="once__device"><svg class="i"><use href="#i-tablet"/></svg><i><svg class="i"><use href="#i-check"/></svg></i></span>
+              <span class="once__device"><svg class="i"><use href="#i-phone"/></svg><i><svg class="i"><use href="#i-check"/></svg></i></span>
+            </div>
+            <div class="once__copy">
+              <h3 id="once-title">On all your devices</h3>
+              <p>Your year plan, its check-ins and your reviews are part of your planner: Personal sync and backups carry them to your other devices.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--tint" id="open" aria-labelledby="open-title">
+      <div class="wrap">
+        <div class="oss" data-open-source data-reveal>
+          <div class="oss__head">
+            <p class="kicker"><svg class="i" aria-hidden="true"><use href="#i-code"/></svg>Free and open source</p>
+            <h2 id="open-title">Yours to use, to read and to keep.</h2>
+            <p class="lead">Every part of Daily Planner is free, for everyone: no account, no trial and nothing to buy. Its code is open source under the MIT licence, so anyone can see how it works and what it does with their plans.</p>
+          </div>
+          <div class="oss__aside">
+            <div class="oss__card">
+              <p class="oss__card-title">Start today, or look inside first.</p>
+              <div class="oss__links">
+                <a class="btn btn--primary" href="../?start" data-cta="app">Open the planner — it’s free</a>
+                <a class="btn btn--ghost" data-config-link="github" target="_blank" rel="noopener" hidden><svg class="i" aria-hidden="true"><use href="#i-code"/></svg>Source code on GitHub</a>
+                <a class="btn btn--ghost" data-config-link="sponsor" target="_blank" rel="noopener" hidden><svg class="i" aria-hidden="true"><use href="#i-heart"/></svg>Sponsor on GitHub</a>
+              </div>
+              <p class="oss__trust"><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg><span>Made by Ben Morin. No ads, and no data to sell: your plans never reach our servers.</span></p>
+            </div>
+          </div>
+          <ul class="oks oss__list" aria-label="What that means">
+            <li><span class="ok" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span><b>All of it, for everyone</b> <span>Plan your year with the misogi, quarterly check-ins, your year in review, Insights and every palette</span></span></li>
+            <li><span class="ok" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span><b>No account</b> <span>Open it and start: no sign-up, no email, no password</span></span></li>
+            <li><span class="ok" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span><b>Plans that stay on your device</b> <span>Saved in your browser, never on our servers</span></span></li>
+            <li><span class="ok" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span><b>Personal sync, sealed</b> <span>Optional, through your own Google Drive or Dropbox, sealed with your passphrase</span></span></li>
+            <li><span class="ok" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span><b>Open source, MIT</b> <span>Read the code, report a problem, or run your own copy</span></span></li>
+            <li><span class="ok" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span><b>Works offline</b> <span>Installs like an app, on your computer, tablet and phone</span></span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="faq" aria-labelledby="faq-title">
+      <div class="wrap faq">
+        <div class="faq__intro" data-reveal-each>
+          <h2 id="faq-title">Questions</h2>
+          <p>Something missing? <a href="../?help" data-cta="app">The planner’s own Help page</a> explains every feature and shortcut, or <a href="../contact/">ask a question</a>.</p>
+        </div>
+        <div class="faq__groups" data-faq data-reveal-each>
+          <div class="faq__group">
+            <h3 class="faq__label">The planner</h3>
+            <div class="faq__list">
+              <details class="qa" name="faq">
+                <summary>Do I need an account?</summary>
+                <div class="qa__a"><p>No. Open the planner and start. There’s no sign-up, no email and no password.</p></div>
+              </details>
+              <details class="qa" name="faq">
+                <summary>Is it really free?</summary>
+                <div class="qa__a"><p>Yes, all of it, for as long as you use it: your days and weeks, Horizon, Plan your year, the quarterly check-ins, your year in review, Insights and every palette. There’s no trial, no account and nothing to buy.</p></div>
+              </details>
+              <details class="qa" name="faq">
+                <summary>Where is my data stored?</summary>
+                <div class="qa__a"><p>In your browser, on your device. It isn’t sent to our servers. You can back up everything to a file at any time and restore it in another browser.</p></div>
+              </details>
+              <details class="qa" name="faq">
+                <summary>Does it work offline?</summary>
+                <div class="qa__a"><p>Yes. Once the planner has loaded, it reopens without a connection, which is especially handy when it’s installed as an app.</p></div>
+              </details>
+              <details class="qa" name="faq">
+                <summary>Is Personal sync safe?</summary>
+                <div class="qa__a"><p>It’s optional, and sealed. Your planner is encrypted on your device with a passphrase only you know before it goes to your cloud, so Google or Dropbox hold a file they can’t read. The planner can only reach its own file there, not your other files, and nothing passes through our servers. Before applying changes from another device, it keeps a few recovery snapshots on your device.</p></div>
+              </details>
+              <details class="qa" name="faq">
+                <summary>Which clouds can I sync with?</summary>
+                <div class="qa__a"><p>Your own Google Drive or your own Dropbox, whichever you choose in the planner’s settings. Without either, a backup file moves everything from one browser to another.</p></div>
+              </details>
+              <details class="qa" name="faq">
+                <summary>Can I share my week or my year?</summary>
+                <div class="qa__a"><p>Yes. When you close the last planning day of a week, its summary offers Share your week, and Progress offers Share your year. Either becomes a clean image for a post or a message, made on your device: nothing is uploaded.</p></div>
+              </details>
+              <details class="qa" name="faq">
+                <summary>Which devices does it work on?</summary>
+                <div class="qa__a"><p>Any recent browser on iPhone, iPad, Android, Mac, Windows or Linux. To install it as an app, use Install in Chrome or Edge, or Share → Add to Home Screen on iPhone and iPad.</p></div>
+              </details>
+            </div>
+          </div>
+          <div class="faq__group">
+            <h3 class="faq__label">Open source</h3>
+            <div class="faq__list">
+              <details class="qa" name="faq">
+                <summary>Is Daily Planner open source?</summary>
+                <div class="qa__a"><p>Yes. Its code is published under the MIT licence: you can read it, change it and run your own copy. The name “Daily Planner by Ben Morin” and its logo aren’t covered by that licence, so a copy you publish needs a name of its own.<span data-config-show="github" hidden> The code is on <a data-config-link="github" target="_blank" rel="noopener">GitHub</a>.</span></p></div>
+              </details>
+              <details class="qa" name="faq">
+                <summary>Why is it free?</summary>
+                <div class="qa__a"><p>Because a planner for your own days works best when it asks nothing of you: no account, nothing to buy, and your plans on your device. Daily Planner is an independent project by Ben Morin, with no ads and no data to sell.<span data-config-show="sponsor" hidden> If it helps you, you can support it on <a data-config-link="sponsor" target="_blank" rel="noopener">GitHub Sponsors</a>.</span></p></div>
+              </details>
+              <details class="qa" name="faq">
+                <summary>Can I run my own copy?</summary>
+                <div class="qa__a"><p>Yes. The planner is plain HTML, CSS and JavaScript, with nothing to build while you work on it. Its README explains how to run it on your computer and how to put your own copy online with Cloudflare Pages.</p></div>
+              </details>
+              <details class="qa" name="faq">
+                <summary>How do I report a problem or suggest something?</summary>
+                <div class="qa__a"><p>Send feedback from the planner’s menu, or <a href="../contact/">ask a question</a> on the Contact page.<span data-config-show="github" hidden> You can also open an issue on <a data-config-link="github" target="_blank" rel="noopener">GitHub</a>.</span></p></div>
+              </details>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="final" aria-labelledby="final-title" data-final-cta>
+      <div class="wrap final__inner" data-reveal-each>
+        <div class="final__mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i class="is-rest"></i><i class="is-rest"></i></div>
+        <h2 id="final-title">Start with today.</h2>
+        <p class="lead">Open the planner, write one thing to keep in mind, and choose the outcome that would make today count.</p>
+        <div class="cta-row">
+          <a class="btn btn--primary" href="../?start" data-cta="app">Open the planner — it’s free</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot__inner">
+      <div class="foot__brand">
+        <img src="../favicon.svg" alt="" width="24" height="24" loading="lazy" decoding="async">
+        <span><b>Daily Planner</b> By <a href="https://bemorin.com/" rel="noopener">Ben Morin</a></span>
+      </div>
+      <nav class="foot__links" aria-label="Social links" hidden>
+        <span class="foot__social" data-social hidden></span>
+      </nav>
+    </div>
+    <div class="wrap foot__base">
+      <div class="foot__links">
+        <nav class="foot__legal" aria-label="Legal">
+          <a href="../legal/privacy/">Privacy</a>
+          <a href="../legal/terms/">Terms</a>
+          <a href="../legal/cookies/">Cookies</a>
+          <a href="../legal/">Legal notice</a>
+        </nav>
+        <a href="../contact/">Contact</a>
+      </div>
+      <button class="foot__counts" type="button" data-privacy-open hidden><svg class="i" aria-hidden="true"><use href="#i-stats"/></svg>What this page counts</button>
+    </div>
+  </footer>
+
+  <div class="dock" data-dock>
+    <a class="btn btn--primary" href="../?start" data-cta="app">Open the planner — it’s free</a>
+  </div>
+
+  <dialog class="pv" id="privacy" aria-labelledby="privacy-title" data-privacy-dialog>
+    <div class="pv__panel">
+      <button class="pv__close" type="button" aria-label="Close" data-privacy-close><svg class="i" aria-hidden="true"><use href="#i-close"/></svg></button>
+      <div class="pv__scroll" data-privacy-scroll>
+        <header class="pv__head">
+          <p class="pv__eyebrow">Privacy</p>
+          <h2 id="privacy-title" tabindex="-1">What this page counts and stores</h2>
+          <p>Your plans are never part of it: they stay in your browser.</p>
+        </header>
+        <div class="pv__grid">
+          <section class="pv__sec" data-privacy-section="counts" aria-labelledby="pv-counts">
+            <span class="pv__icon" aria-hidden="true"><svg class="i"><use href="#i-stats"/></svg></span>
+            <div class="pv__body">
+              <h3 id="pv-counts" tabindex="-1">Anonymous counts</h3>
+              <p>To learn what helps, this page adds one to a daily count when someone:</p>
+              <ul class="pv__moments" data-privacy-moments></ul>
+              <p>No identifiers, no cookies, no IP address in the counts. To stop abuse, the server limits how often one connection can send it something, counts and forms included. For that alone, it keeps a scrambled form of your IP address, apart from the counts: it can’t be linked back to you once the day changes, and it is deleted within 24 hours.</p>
+              <p>Our host, Cloudflare, also measures visits to the site’s pages for us (Cloudflare Web Analytics): without cookies, in totals only. The switch below covers the counts above, not Cloudflare’s measure; a content blocker in your browser stops that one.</p>
+              <label class="pv-toggle"><span><strong>Count my visits anonymously</strong><small data-privacy-note>On in this browser, here and in the planner.</small></span><input class="pv-switch" type="checkbox" role="switch" checked data-privacy-switch></label>
+            </div>
+          </section>
+          <section class="pv__sec" data-privacy-section="requests" aria-labelledby="pv-requests">
+            <span class="pv__icon" aria-hidden="true"><svg class="i"><use href="#i-mail"/></svg></span>
+            <div class="pv__body">
+              <h3 id="pv-requests" tabindex="-1">Questions</h3>
+              <p>A question asked on the Contact page sends only your email, your name and your question. It’s stored only to reply to you and follow up, with your browser’s language, the page version and where the form was opened, and deleted whenever you ask.</p>
+            </div>
+          </section>
+        </div>
+      </div>
+      <div class="pv__foot">
+        <a class="pv__policy" href="../legal/privacy/">Read the full privacy policy<svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        <button class="btn btn--primary btn--sm" type="button" data-privacy-close>Done</button>
+      </div>
+    </div>
+  </dialog>
+</body>
+</html>

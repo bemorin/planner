@@ -1,0 +1,94 @@
+# Cloudflare Pages response headers (copied to dist/ by scripts/build.mjs;
+# scripts/serve.mjs sends them too, through scripts/headers.mjs).
+#
+# Security (1.35), on every address (/*): the only rule that sets these
+# headers, so nothing is joined to them.
+# - Content-Security-Policy: scripts only from this site, Google's sign-in
+#   (Drive sync, loaded on Connect) and Cloudflare Web Analytics' beacon,
+#   plus the few inline scripts in the pages' <head>, each by its SHA-256
+#   hash (they set the theme and the entrances before first paint, and send
+#   old addresses on). Change one and its hash changes: scripts/check.mjs
+#   fails until script-src lists exactly the hashes of the published pages'
+#   inline scripts (scripts/csp.mjs; data blocks such as ld+json need none).
+#   No inline event handlers or javascript: links. Styles may be inline
+#   (style attributes), and Google's sign-in brings its own stylesheet
+#   (accounts.google.com/gsi/style). Images: this site, data: and blob: (the
+#   shared image).
+#   Requests: this site, the Drive API, Google's sign-in, Dropbox's API and
+#   its file transfers (1.38: api.dropboxapi.com for sign-in tokens,
+#   content.dropboxapi.com for the sync file) and Cloudflare's analytics.
+#   Dropbox's sign-in page is a visit to www.dropbox.com that comes back to
+#   the planner: a navigation, which the policy does not restrict, so it
+#   needs no frame-src or form-action. Frames: Google's sign-in only. Framed
+#   by this site only.
+#   A new outside service (a CLOUD_API_URL on another site, a font) needs its
+#   address here first.
+# - What the policy blocks, browsers report to /api/csp-report (report-uri,
+#   and report-to with Reporting-Endpoints): the API keeps daily counts of the
+#   directive, what was blocked (an origin, never a full address) and the
+#   page, nothing about visitors, and the Configuration page lists the last 7
+#   days (server/csp-reports.js).
+# - Strict-Transport-Security for two years, subdomains included, not
+#   preloaded. X-Frame-Options and frame-ancestors keep the dashboard out of
+#   other sites' frames.
+# - Cross-Origin-Opener-Policy same-origin-allow-popups: the Google sign-in
+#   window still reports back to the planner.
+# - Permissions-Policy: no camera, microphone, location, payment or USB.
+#
+# Pages, scripts and styles are checked with the server on every visit
+# (Cache-Control: no-cache): the browser and Cloudflare may keep a copy, but
+# ask first whether it changed, so a new deploy shows up on the next load and
+# an unchanged file costs a quick "304 Not Modified". This is what keeps the
+# owner dashboard (/admin/) and the planner from running last week's code.
+#
+# Not listed: /api/*. Pages Functions set their own headers and _headers never
+# applies to them. Images, fonts and icons keep Cloudflare's default caching. The
+# service worker (sw.js) keeps its own copy of the planner for offline use and
+# goes to the network first, so the installed app still opens offline.
+#
+# One Cache-Control rule per address: when two rules match, Pages joins their
+# values, so the page addresses below are exact and every file is covered by
+# its type. tests/cache-headers.test.js checks that every page and file of the
+# site gets Cache-Control from one rule (and its security headers from /*).
+#
+# The addresses of the Teams and partners pages and of the former gift page,
+# which the site no longer has (1.39), are permanent redirects to /welcome/
+# (_redirects), which browsers may keep: no rule here. A browser that still
+# keeps 1.28's permanent redirect of /teams/ to /welcome/teams/ (or of
+# /partners/ to /welcome/partners/) follows it, then the redirect of that
+# address to /welcome/, which redirects nowhere: never a loop, so the
+# Clear-Site-Data rules of 1.30 to 1.38 are gone too.
+
+/*
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; script-src 'self' 'sha256-JoTBSAd4SHtWUZAGiGk8nHfK0s5h7IuL5RgOHlI1Njs=' 'sha256-/s2hfHtzqEDD66vPpUmpZ8TxGudbpWj4PAhHqmnBjpM=' 'sha256-3pS/uDg7p9xRgJ2OjOsIyu2p6+5qbX5i8Gb3Cl1oY8A=' 'sha256-FF7Jo9BDY7t6HO9ZZCnsQidc0vT/6qgEtZyjDn11+80=' https://accounts.google.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://www.googleapis.com https://accounts.google.com https://api.dropboxapi.com https://content.dropboxapi.com https://cloudflareinsights.com; frame-src https://accounts.google.com; manifest-src 'self'; worker-src 'self'; form-action 'self'; report-uri /api/csp-report; report-to csp
+  Reporting-Endpoints: csp="/api/csp-report"
+  Strict-Transport-Security: max-age=63072000; includeSubDomains
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+/*.html
+  Cache-Control: no-cache
+/*.js
+  Cache-Control: no-cache
+/*.css
+  Cache-Control: no-cache
+/
+  Cache-Control: no-cache
+/admin/
+  Cache-Control: no-cache
+/admin/configuration/
+  Cache-Control: no-cache
+/contact/
+  Cache-Control: no-cache
+/welcome/
+  Cache-Control: no-cache
+/legal/
+  Cache-Control: no-cache
+/legal/privacy/
+  Cache-Control: no-cache
+/legal/terms/
+  Cache-Control: no-cache
+/legal/cookies/
+  Cache-Control: no-cache

@@ -1,0 +1,327 @@
+/* Share your week / your year ------------------------------------------------
+   The entry in the weekly review, and the share sheet (src/features/share-dialog.js):
+   a native <dialog> with a live preview of the image, its format and look, the
+   private details (off by default) and the actions. The image itself is drawn on
+   a canvas (src/features/share-image.js); these styles only frame it. */
+
+/* Weekly review: “Share your week” */
+
+.week-share { display: grid; }
+
+.week-share__button {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 12px 12px 12px;
+  border: 1px solid color-mix(in srgb, var(--hz-paint) 24%, var(--line));
+  border-radius: 14px;
+  background: linear-gradient(115deg, color-mix(in srgb, var(--hz-paint) 8%, var(--surface-strong)), var(--surface-strong) 62%);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 180ms ease;
+}
+
+.week-share__button:hover,
+.week-share__button:focus-visible { border-color: color-mix(in srgb, var(--hz-paint) 45%, var(--line)); box-shadow: 0 10px 26px rgba(25, 22, 17, .07); }
+
+.week-share__strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 15px;
+  gap: 3px;
+  padding: 9px;
+  border-radius: 10px;
+  background: var(--surface-strong);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hz-paint) 14%, var(--line));
+}
+
+.week-share__strip .hz-paint__cell { width: 15px; border-radius: 3.5px; }
+
+.week-share__copy { min-width: 0; display: grid; gap: 3px; }
+
+.week-share__copy strong { font-size: .9rem; font-weight: 680; letter-spacing: -.01em; }
+
+.week-share__copy small { color: var(--muted); font-size: .72rem; line-height: 1.45; }
+
+.week-share__go {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px 0 12px;
+  border-radius: 999px;
+  background: var(--hz-paint);
+  color: var(--surface-strong);
+  font-size: .76rem;
+  font-weight: 660;
+  white-space: nowrap;
+  transition: background-color 140ms ease;
+}
+
+.week-share__button:hover .week-share__go,
+.week-share__button:focus-visible .week-share__go { background: color-mix(in srgb, var(--hz-paint) 86%, var(--ink)); }
+
+.week-share__go svg,
+.share-sheet svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+@media (max-width: 560px) {
+  .week-share__button { grid-template-columns: minmax(0, 1fr) auto; row-gap: 10px; }
+  .week-share__strip { grid-column: 1 / -1; justify-self: start; }
+}
+
+/* The sheet */
+
+.share-sheet {
+  width: min(100% - 32px, 940px);
+  max-width: none;
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+}
+
+.share-sheet::backdrop { background: rgba(32, 29, 25, .34); backdrop-filter: blur(2px); }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .share-sheet::backdrop { background: rgba(6, 5, 4, .6); }
+}
+
+:root[data-theme="dark"] .share-sheet::backdrop { background: rgba(6, 5, 4, .6); }
+
+.share-sheet__panel {
+  position: relative;
+  max-height: min(860px, calc(100dvh - 32px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.share-sheet__head { padding: 20px 64px 2px 24px; }
+
+.share-sheet__head h2 { margin: 0; font-size: 1.12rem; letter-spacing: -.02em; }
+
+.share-sheet__head p:last-child { max-width: 60ch; margin: .38rem 0 0; color: var(--muted); font-size: .76rem; line-height: 1.55; }
+
+.share-sheet__close { top: 16px; right: 16px; }
+
+.share-sheet__body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 292px;
+  gap: 22px;
+  padding: 16px 24px 20px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* The preview sits on a quiet mat at a fixed height, so changing format never moves the controls. */
+.share-sheet__stage {
+  height: clamp(300px, calc(100dvh - 300px), 560px);
+  min-width: 0;
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+  padding: 22px;
+  border-radius: 14px;
+  background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--hz-paint) 7%, var(--soft)), var(--soft) 70%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.share-sheet__canvas {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(25, 22, 17, .08), 0 16px 38px rgba(25, 22, 17, .16);
+}
+
+.share-sheet__stage[data-format="landscape"] .share-sheet__canvas { border-radius: 6px; }
+
+.share-sheet__controls { min-width: 0; display: grid; align-content: start; gap: 18px; }
+
+.share-sheet__group { min-width: 0; margin: 0; padding: 0; border: 0; }
+
+.share-sheet__group > legend {
+  margin: 0 0 8px;
+  padding: 0;
+  color: var(--faint);
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .075em;
+  text-transform: uppercase;
+}
+
+.share-sheet__formats { display: grid; gap: 6px; }
+
+.share-sheet__looks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+/* Choices: a visually hidden radio and the card after it. */
+.share-choice { position: relative; display: block; min-width: 0; cursor: pointer; }
+
+.share-choice input,
+.share-toggle input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+
+.share-choice__card {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-strong);
+  color: var(--muted);
+  transition: border-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+
+.share-choice:hover .share-choice__card { border-color: var(--line-strong); color: var(--ink); }
+
+.share-choice input:checked + .share-choice__card { border-color: var(--hz-paint); box-shadow: inset 0 0 0 1px var(--hz-paint); color: var(--ink); }
+
+.share-choice input:focus-visible + .share-choice__card,
+.share-toggle input:focus-visible + .share-toggle__track { outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 2px; }
+
+.share-choice__card b { color: var(--ink); font-size: .8rem; font-weight: 650; }
+
+.share-choice__text { min-width: 0; display: grid; gap: 1px; }
+
+.share-choice__text small { overflow: hidden; color: var(--faint); font-size: .68rem; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+
+.share-choice__frame { width: 26px; height: 26px; flex: 0 0 auto; display: grid; place-items: center; }
+
+.share-choice__frame::before { content: ""; display: block; border: 1.5px solid currentColor; border-radius: 3px; }
+
+.share-choice__frame--square::before { width: 18px; height: 18px; }
+
+.share-choice__frame--story::before { width: 13px; height: 22px; }
+
+.share-choice__frame--landscape::before { width: 24px; height: 13px; }
+
+.share-choice input:checked + .share-choice__card .share-choice__frame { color: var(--hz-paint); }
+
+.share-choice input:checked + .share-choice__card .share-choice__frame::before { background: color-mix(in srgb, var(--hz-paint) 16%, transparent); }
+
+.share-choice__swatch { width: 22px; height: 22px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 7px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 16%, transparent); }
+
+.share-choice__swatch--paper { background: #f6f3ed; }
+
+.share-choice__swatch--ink { background: #151412; }
+
+.share-choice__swatch i { width: 8px; height: 8px; border-radius: 2px; background: var(--hz-paint); }
+
+/* Private details: switches, off by default. */
+.share-sheet__group--private { display: grid; }
+
+.share-toggle {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-strong);
+  cursor: pointer;
+}
+
+.share-toggle + .share-toggle,
+.share-sheet__select + .share-toggle { margin-top: 6px; }
+
+.share-toggle:hover { border-color: var(--line-strong); }
+
+.share-toggle__track { position: relative; width: 34px; height: 20px; margin-top: 1px; border-radius: 999px; background: color-mix(in srgb, var(--line-strong) 90%, var(--surface)); transition: background-color 160ms ease; }
+
+.share-toggle__track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(25, 22, 17, .25); transition: transform 160ms ease; }
+
+.share-toggle input:checked + .share-toggle__track { background: var(--hz-paint); }
+
+.share-toggle input:checked + .share-toggle__track::after { transform: translateX(14px); }
+
+.share-toggle__text { min-width: 0; display: grid; gap: 2px; }
+
+.share-toggle__text b { color: var(--ink); font-size: .78rem; font-weight: 650; line-height: 1.35; }
+
+.share-toggle__text small { color: var(--muted); font-size: .7rem; line-height: 1.45; overflow-wrap: anywhere; }
+
+.share-sheet__select { display: block; margin-top: 6px; }
+
+.share-sheet__select select {
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-strong);
+  color: var(--ink);
+  font: inherit;
+  font-size: .76rem;
+}
+
+.share-sheet__select select:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 2px; }
+
+.share-sheet__note { display: flex; align-items: flex-start; gap: 7px; margin: 10px 0 0; color: var(--faint); font-size: .7rem; line-height: 1.45; }
+
+.share-sheet__note svg { width: 14px; height: 14px; flex: 0 0 auto; margin-top: 1px; stroke-width: 1.7; }
+
+.share-sheet__foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.share-sheet__messages { min-width: 0; flex: 1 1 auto; display: grid; gap: 4px; }
+
+.share-sheet__status { min-width: 0; margin: 0; color: var(--muted); font-size: .74rem; line-height: 1.4; }
+
+.share-sheet__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-left: auto; }
+
+.share-sheet__action { min-height: 38px; gap: 7px; padding: 8px 14px 8px 12px; font-size: .78rem; }
+
+/* Phones: a bottom sheet — preview on top, choices below, actions always in reach. */
+@media (max-width: 680px) {
+  .share-sheet { width: 100%; margin: auto 0 0; }
+  .share-sheet__panel { max-height: calc(100dvh - 10px); border-bottom: 0; border-radius: 18px 18px 0 0; }
+  .share-sheet__head { padding: 16px 56px 0 16px; }
+  .share-sheet__head p:last-child { font-size: .72rem; }
+  .share-sheet__close { top: 10px; right: 10px; }
+  .share-sheet__body { grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 12px 16px 16px; }
+  .share-sheet__stage { height: min(42dvh, 360px); padding: 14px; }
+  .share-sheet__formats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .share-choice--format .share-choice__card { min-height: 66px; flex-direction: column; justify-content: center; gap: 4px; padding: 8px 6px; text-align: center; }
+  .share-choice--format .share-choice__text small { display: none; }
+  .share-sheet__foot { flex-direction: column; align-items: stretch; gap: 8px; padding: 10px 16px max(14px, env(safe-area-inset-bottom)); }
+  .share-sheet__messages { display: contents; }
+  .share-sheet__status:empty { display: none; }
+  .share-sheet__actions { flex-wrap: wrap; margin-left: 0; }
+  .share-sheet__action { flex: 1 1 0; justify-content: center; min-height: 44px; }
+  .share-sheet__actions .primary-button { order: -1; flex-basis: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .week-share__button,
+  .week-share__go,
+  .share-choice__card,
+  .share-toggle__track,
+  .share-toggle__track::after { transition: none; }
+}
+
+@media print {
+  .share-sheet { display: none; }
+}

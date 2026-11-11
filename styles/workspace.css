@@ -1,0 +1,101 @@
+/* Optional Enterprise workspace shell. Hidden unless the cloud profile exposes organizations. */
+
+.workspace-switcher__trigger {
+  min-height: 32px;
+  max-width: 150px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: .66rem;
+  font-weight: 650;
+}
+
+.workspace-switcher__trigger:hover,
+.workspace-switcher__trigger:focus-visible {
+  outline: 0;
+  border-color: var(--line-strong);
+  background: var(--surface-strong);
+  color: var(--ink);
+}
+
+.workspace-switcher__trigger span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-switcher__trigger svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.workspace-menu { min-width: 190px; }
+.workspace-menu button { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.workspace-menu button[aria-current="true"] { background: var(--soft); color: var(--ink); }
+.workspace-menu small { color: var(--faint); font-size: .56rem; font-weight: 650; text-transform: uppercase; letter-spacing: .055em; }
+
+.enterprise-workspace-shell {
+  grid-column: 1 / -1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: clamp(24px, 7vw, 80px);
+}
+
+.enterprise-workspace-shell__inner {
+  width: min(520px, 100%);
+  padding: clamp(22px, 4vw, 34px);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  text-align: left;
+}
+
+.enterprise-workspace-shell__inner h2 { margin: 0; font-size: 1.18rem; letter-spacing: -.03em; }
+.enterprise-workspace-shell__inner p:last-child { margin: 10px 0 0; color: var(--muted); font-size: .76rem; line-height: 1.55; }
+
+.workspace[data-workspace-mode="enterprise"] > .left,
+.workspace[data-workspace-mode="enterprise"] > .schedule-section { display: none; }
+.workspace[data-workspace-mode="enterprise"] > .enterprise-workspace-shell { display: grid; }
+
+.mobile-workspace {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 4px;
+  padding: 3px 4px 7px;
+  border-bottom: 1px solid var(--line);
+}
+
+.mobile-workspace > span {
+  padding: 2px 5px;
+  color: var(--faint);
+  font-size: .54rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .065em;
+}
+
+.mobile-workspace > button { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mobile-workspace > button strong { font-size: .7rem; font-weight: 650; }
+.mobile-workspace-options { display: grid; gap: 2px; }
+.mobile-workspace-options button[aria-current="true"] { background: var(--soft); color: var(--ink); }
+
+@media (max-width: 790px) {
+  .workspace:not(.is-week-view):not([data-workspace-mode="enterprise"]) { touch-action: pan-y; }
+  .workspace-switcher { display: none; }
+  .workspace[data-workspace-mode="enterprise"] { height: 100%; }
+  .workspace[data-workspace-mode="enterprise"] > .enterprise-workspace-shell { height: 100%; padding: 22px 10px; }
+}

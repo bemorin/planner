@@ -1,0 +1,14 @@
+{
+  "name": "Daily Planner",
+  "short_name": "Daily Planner",
+  "description": "A local-first daily and weekly planner by Ben Morin.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f3ed",
+  "theme_color": "#f6f3ed",
+  "icons": [
+    { "src": "./pwa-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./pwa-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

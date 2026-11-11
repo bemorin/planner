@@ -1,0 +1,168 @@
+/* Contact page (contact/, at /contact/) ----------------------------------------
+   Loaded after ../welcome/landing.css and built on its tokens and parts (.top,
+   .wrap, .kicker, .lead, .btn, .foot) and on the question form's (.ask-form,
+   .fields, .field, .form-done), which sit here on a light card: the card
+   gives the form's --band-* tokens the page's own colours. Its own parts
+   carry the `ct` prefix. The intro and the card arrive with CSS alone; the
+   list below rises in (welcome/page-motion.js); nothing moves with reduced
+   motion. */
+
+/* No dock on this page (landing.css keeps room for the landing page's on
+   phones), so nothing is left blank under the footer. */
+body.contact-page { padding-bottom: 0; }
+
+.ct { padding: clamp(32px, 6vw, 88px) 0 clamp(64px, 8vw, 112px); }
+
+/* Phone: the intro, the form, then the list. From 960px: the intro and the
+   list on the left, the form beside them. */
+.ct__grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; }
+
+@media (min-width: 960px) {
+  .ct__grid {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "intro card" "more card";
+    column-gap: clamp(48px, 6vw, 96px);
+    row-gap: 48px;
+  }
+  .ct__intro { grid-area: intro; }
+  .ct__card { grid-area: card; align-self: start; }
+  .ct__more { grid-area: more; align-self: start; }
+}
+
+/* From 960px the card keeps to the window while the page scrolls: it slides
+   down, under the top bar, through most of the space the section keeps below
+   it (the grid's row gap and a last, empty row), and stops 40px above the
+   footer (the section's bottom padding, which it never crosses); at rest the
+   space looks as before. Only when the whole card fits below the top bar
+   (contact.js adds `is-following`): a taller card would keep its own button
+   out of sight. */
+@media (min-width: 960px) {
+  .ct { padding-bottom: 40px; }
+  .ct__grid {
+    grid-template-rows: auto 1fr max(0px, clamp(64px, 8vw, 112px) - 88px);
+    grid-template-areas: "intro card" "more card" ". .";
+  }
+  .ct__card.is-following { position: sticky; top: calc(var(--top-h) + 24px); }
+}
+
+.ct__intro { display: grid; justify-items: start; align-content: start; gap: 18px; }
+
+.ct__intro h1 { max-width: 11em; }
+
+.ct__intro .lead { max-width: 30em; }
+
+.ct__alt { display: inline-flex; align-items: flex-start; gap: 10px; color: var(--muted); font-size: .98rem; }
+
+.ct__alt svg.i { width: 20px; height: 20px; margin-top: 2px; color: var(--faint-mark); }
+
+.ct__alt a { color: var(--ink); font-weight: 620; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--misogi) 60%, transparent); text-underline-offset: 3px; overflow-wrap: anywhere; }
+
+.ct__alt a:hover { text-decoration-color: currentColor; }
+
+.foot__links a[aria-current="page"] { color: var(--ink); }
+
+/* The form, on a light card ---------------------------------------------------- */
+
+.ct__card {
+  --band-bg: var(--surface-strong);
+  --band-ink: var(--ink);
+  --band-muted: var(--muted);
+  --band-line: var(--line-strong);
+  --band-field: var(--paper);
+  --band-accent: var(--focus);
+  --band-error: var(--danger);
+  container-type: inline-size;
+  padding: clamp(22px, 4vw, 40px);
+  border: 1px solid var(--line);
+  border-radius: clamp(20px, 3vw, 26px);
+  background: var(--surface-strong);
+  box-shadow: 0 34px 70px -46px rgba(48, 38, 26, .34), 0 2px 8px rgba(48, 38, 26, .05);
+}
+
+@media (prefers-color-scheme: dark) {
+  .ct__card { box-shadow: 0 34px 70px -40px rgba(0, 0, 0, .7), 0 2px 8px rgba(0, 0, 0, .25); }
+}
+
+/* Email and name side by side as soon as the card is wide enough, the question below. */
+.ct-form .fields { grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 16px; }
+
+.ct-form .field input,
+.ct-form .field textarea { border-color: color-mix(in srgb, var(--line-strong) 82%, var(--surface-strong)); }
+
+.ct-form .field input:hover,
+.ct-form .field textarea:hover { border-color: var(--line-strong); }
+
+.ct-form .field textarea { min-height: 168px; }
+
+/* No rule above the end of the form (1.33.2): on a card this short the line
+   cut it in two. The fine print and the button follow the question at the
+   fields' own rhythm, a little apart. */
+.ct-form .ask-form__foot { margin-top: 6px; padding-top: 0; border-top: 0; }
+
+.ct-form .form-privacy a { color: var(--ink); white-space: nowrap; }
+
+/* Sent: the card itself holds the thanks. */
+.ct__card .form-done { padding: 4px 0; border: 0; background: none; font-size: 1.12rem; }
+
+.ct__card .form-done svg.i { width: 32px; height: 32px; margin-top: -2px; padding: 6px; }
+
+.ct__card .form-done .btn--text-light { color: var(--muted); }
+
+.ct__card .form-done .btn--text-light:hover { color: var(--ink); }
+
+/* On a narrow card the button goes under the fine print, at the end of the
+   form, and full width on a phone. */
+@container (max-width: 640px) {
+  .ct-form .ask-form__foot { grid-template-columns: minmax(0, 1fr); }
+}
+
+@container (max-width: 420px) {
+  .ct-form .ask-form__actions .btn { width: 100%; }
+}
+
+/* Before you write: where else to look ---------------------------------------- */
+
+.ct__more { display: grid; gap: 14px; }
+
+.ct__more h2 { color: var(--muted); font-size: .8rem; font-weight: 700; letter-spacing: .08em; line-height: 1.3; text-transform: uppercase; }
+
+.ct-links { margin: 0; padding: 0; border-top: 1px solid var(--line); list-style: none; }
+
+.ct-links li { border-bottom: 1px solid var(--line); }
+
+.ct-link { display: grid; grid-template-columns: 40px minmax(0, 1fr) 20px; align-items: center; gap: 14px; padding: 14px 6px; border-radius: 12px; color: var(--ink); text-decoration: none; }
+
+.ct-link__icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; background: var(--soft); color: var(--muted); }
+
+.ct-link__icon svg.i { width: 21px; height: 21px; }
+
+.ct-link__text { display: grid; gap: 2px; min-width: 0; }
+
+.ct-link__text b { font-weight: 680; letter-spacing: -.01em; }
+
+.ct-link__text small { color: var(--muted); font-size: .9rem; line-height: 1.45; overflow-wrap: anywhere; }
+
+.ct-link__go { width: 18px; height: 18px; color: var(--faint); }
+
+.ct-link:hover .ct-link__icon { background: color-mix(in srgb, var(--paint) 12%, var(--surface-strong)); color: var(--paint); }
+
+.ct-link:hover .ct-link__go { color: var(--ink); }
+
+.ct-link:focus-visible { outline-offset: -2px; border-radius: 12px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ct-link__icon,
+  .ct-link__go { transition: background-color 160ms ease, color 160ms ease, transform 220ms cubic-bezier(.22, 1, .36, 1); }
+  .ct-link:hover .ct-link__go { transform: translateX(3px); }
+}
+
+/* The intro and the card need no script to arrive: the copy rises line by line, the card follows. */
+@media screen and (prefers-reduced-motion: no-preference) {
+  .ct__intro > *,
+  .ct__card { animation: rise-in 820ms cubic-bezier(.22, 1, .36, 1) both; }
+  .ct__intro h1 { animation-delay: 60ms; }
+  .ct__intro .lead { animation-delay: 140ms; }
+  .ct__intro .ct__alt { animation-delay: 200ms; }
+  .ct__card { animation-duration: 1000ms; animation-delay: 160ms; }
+}

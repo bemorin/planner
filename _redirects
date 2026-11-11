@@ -1,0 +1,29 @@
+# Cloudflare Pages redirects (copied to dist/ by scripts/build.mjs; scripts/serve.mjs
+# applies them too, through scripts/redirects.mjs). The first matching line wins.
+# A redirect keeps the address's query string when its destination has none
+# (/teams/?ask=question → /welcome/?ask=question, which the landing page sends
+# on to the Contact page), and the browser keeps the #hash.
+# Short links to the legal pages; older links to bemorin.com/privacy, /terms and
+# /cookies arrive here through the bemorin.com → planner.bemorin.com redirect.
+/privacy /legal/privacy/ 301
+/terms /legal/terms/ 301
+/cookies /legal/cookies/ 301
+/privacy/ /legal/privacy/ 301
+/terms/ /legal/terms/ 301
+/cookies/ /legal/cookies/ 301
+# The Teams and partners pages (/teams/, /partners/ and /partners/statement/)
+# are gone since 1.39, when Daily Planner became free: their addresses, and
+# anything under them, go to the welcome page for good (301). Their older
+# addresses under /welcome/ (1.28 to 1.29) go there in one step too, and so
+# does the former gift page, /welcome/thanks/. A browser that kept a 301 of
+# 1.28 or 1.30 lands there as well, one hop later, never in a loop.
+/teams /welcome/ 301
+/teams/* /welcome/ 301
+/partners /welcome/ 301
+/partners/* /welcome/ 301
+/welcome/teams /welcome/ 301
+/welcome/teams/* /welcome/ 301
+/welcome/partners /welcome/ 301
+/welcome/partners/* /welcome/ 301
+/welcome/thanks /welcome/ 301
+/welcome/thanks/* /welcome/ 301

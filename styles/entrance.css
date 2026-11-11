@@ -1,0 +1,19 @@
+/* Opening (1.30) -------------------------------------------------------------
+   Until app.js has drawn the first real day, the planner stays out of sight on
+   the paper background, so an empty shell never jumps into place: index.html
+   marks the document data-booting before the first paint and
+   src/features/app-entrance.js releases it, playing the entrance once per
+   session. If the script never gets there, the planner shows itself after
+   2.4 s (FAILSAFE_MS there; index.html lifts the planner's inert then too).
+   Meanwhile the opening seal stands on the paper, above it: it holds about
+   3 s, and fades by itself at 3.5 s should nothing take it away first
+   (1.35.2, styles/opening.css). Screen only: nothing changes for print. */
+
+@media screen {
+  [data-booting] .planner {
+    opacity: 0;
+    animation: entrance-failsafe 1ms linear 2400ms forwards;
+  }
+}
+
+@keyframes entrance-failsafe { to { opacity: 1; } }

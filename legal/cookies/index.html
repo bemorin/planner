@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cookies and storage — Daily Planner</title>
+  <meta name="description" content="Daily Planner sets no cookies. What your browser keeps for the planner, why, for how long, and how to clear it.">
+  <meta name="theme-color" content="#f6f3ed" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#151412" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <link rel="canonical" href="https://planner.bemorin.com/legal/cookies/">
+  <link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+  <link rel="stylesheet" href="../legal.css">
+  <script src="../../runtime-config.js"></script>
+  <script type="module" src="../legal.js"></script>
+</head>
+<body data-root="../../">
+  <a class="lg-skip" href="#main">Skip to content</a>
+
+  <header class="lg-top">
+    <div class="lg-wrap lg-top__inner">
+      <a class="lg-brand" href="../../welcome/" aria-label="Daily Planner, about the planner">
+        <img src="../../favicon.svg" alt="" width="28" height="28">
+        <span>Daily Planner</span>
+      </a>
+      <a class="lg-btn" href="../../?start">Open the planner</a>
+    </div>
+  </header>
+
+  <main id="main" class="lg-wrap lg-main">
+    <div class="lg-head">
+      <p class="lg-kicker">Legal</p>
+      <h1>Cookies and storage</h1>
+      <p class="lg-lead">Daily Planner sets no cookies. Your browser does keep some data so the planner can work — mostly your planner itself. Here is all of it.</p>
+      <p class="lg-updated">Last updated: <time datetime="2026-11-10">10 November 2026</time></p>
+    </div>
+
+    <div class="lg-layout">
+      <nav class="lg-toc" aria-labelledby="toc-title">
+        <h2 id="toc-title">On this page</h2>
+        <ol>
+          <li><a href="#cookies">No cookies</a></li>
+          <li><a href="#storage">What your browser keeps</a></li>
+          <li><a href="#offline">The offline copy</a></li>
+          <li><a href="#clear">How to clear it</a></li>
+          <li><a href="#others">Google and Dropbox</a></li>
+          <li><a href="#questions">Questions</a></li>
+        </ol>
+      </nav>
+
+      <article class="lg-doc">
+        <section id="cookies" aria-labelledby="cookies-title">
+          <h2 id="cookies-title">No cookies</h2>
+          <p>The planner, the welcome page and these pages set no cookies, and load no advertising or tracking scripts. The anonymous counts described in the <a href="../privacy/#counts">privacy policy</a> use no cookies either.</p>
+          <p>To count visits to the site’s pages, the pages load Cloudflare Web Analytics, which our host, Cloudflare, runs for us. It sets no cookies and keeps nothing in your browser, doesn’t fingerprint your device and doesn’t follow you to other sites: we only see totals, such as how many visits a page had and how fast it loaded. No consent is needed for it: it only measures this site’s audience, without cookies, anonymously and in totals, within the CNIL’s rules for audience measurement (see the <a href="../privacy/#visits">privacy policy</a>).</p>
+          <p>Our host, Cloudflare, can set a strictly necessary security cookie in some cases — for example <code>__cf_bm</code> when bot protection is on, or <code>cf_clearance</code> after a security check. They protect the site and are not used to follow you (<a href="https://developers.cloudflare.com/fundamentals/reference/policies-compliances/cloudflare-cookies/" rel="noopener">Cloudflare’s list</a>).</p>
+        </section>
+
+        <section id="storage" aria-labelledby="storage-title">
+          <h2 id="storage-title">What your browser keeps</h2>
+          <p>The planner saves data in your browser’s storage, on your device. None of it is sent to us. Keys that start with <code>daily-planner:</code> are your planner: they go into backups and, if you use it, the sealed copy of Personal sync. The others belong to this browser only. Keys that earlier versions kept and this one no longer uses are removed the first time it opens.</p>
+          <table class="lg-table lg-table--storage">
+            <thead><tr><th scope="col">What</th><th scope="col">Why</th><th scope="col">How long</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Your planner</th><td data-label="Why">Your days, Horizon, journal and settings. <small>Keys starting with <code>daily-planner:</code></small></td><td data-label="How long">Until you delete it.</td></tr>
+              <tr><th scope="row">Preferences on this device</th><td data-label="Why">Your appearance and palette, the trophies you have already seen, and which release you were asked to rate, so you are asked only once. <small>Keys <code>daily-planner-ui:theme</code>, <code>daily-planner-ui:paint</code>, <code>daily-planner-ui:trophies-seen</code>, <code>daily-planner-ui:feedback</code></small></td><td data-label="How long">Until you clear it.</td></tr>
+              <tr><th scope="row">Tour and tips</th><td data-label="Why">When you took the planner tour or were offered it, and which first-use tips you have seen, so each shows only once. <small>Keys <code>daily-planner-ui:tour</code>, <code>daily-planner-ui:tips</code></small></td><td data-label="How long">Until you clear it; <b>How it works → Show tips again</b> clears the tips.</td></tr>
+              <tr><th scope="row">Opening</th><td data-label="Why">Whether the planner’s opening has already played in this tab today, so it plays in full once per visit and only briefly when you reload or go back, and the day you last opened the planner (a date, nothing else), so its opening says “Welcome back” or “Opening your day…” rather than welcoming you as new. <small>Keys <code>daily-planner-ui:entrance-seen</code>, <code>daily-planner-ui:sealed</code>, <code>daily-planner-ui:opened</code></small></td><td data-label="How long">Until you close the tab; the day until you clear it, replaced by the next day you open the planner.</td></tr>
+              <tr><th scope="row">Floating window and shared images</th><td data-label="Why">The view and size of the floating window and whether its unresolved list is open, and the format and look you last chose for a shared image — never what was in it. <small>Keys <code>daily-planner-ui:pip-view</code>, <code>daily-planner-ui:pip-size</code>, <code>daily-planner-ui:pip-unresolved</code>, <code>daily-planner-ui:share</code></small></td><td data-label="How long">Until you clear it.</td></tr>
+              <tr><th scope="row">Usage counts choice</th><td data-label="Why">Remembers whether you switched the anonymous counts off, for the planner and the welcome page. <small>Key <code>daily-planner-ui:usage-counts</code></small></td><td data-label="How long">Until you clear it.</td></tr>
+              <tr><th scope="row">Counted-once notes</th><td data-label="Why">The day, week or month a few moments were last counted, so each is counted once per period. No identifier. <small>Key <code>daily-planner-ui:counted</code></small></td><td data-label="How long">Replaced each period.</td></tr>
+              <tr><th scope="row">Waitlist sign-up</th><td data-label="Why">Your address and a removal token, so you can leave the waitlist from this device. <small>Key <code>daily-planner-ui:waitlist-joined</code></small></td><td data-label="How long">Until you leave the waitlist or clear it.</td></tr>
+              <tr><th scope="row">Personal sync</th><td data-label="Why">Only if you use Personal sync: which cloud you chose (Google Drive or Dropbox), what changed since the last sync, how the last sync went, and up to five recovery snapshots taken before changes from your cloud are applied. <small>Keys <code>daily-planner-sync:cloud</code>, <code>daily-planner-sync:ledger</code>, <code>daily-planner-sync:google</code>, <code>daily-planner-sync:dropbox</code>; IndexedDB <code>daily-planner-recovery</code></small></td><td data-label="How long">Until you clear it, disconnecting included (see below); the oldest snapshot makes way for each new one.</td></tr>
+              <tr><th scope="row">Sync access and seal</th><td data-label="Why">Only if you use Personal sync. With Dropbox, the access Dropbox gives the planner, so sync runs without signing in each time. With Google Drive, the access Google gives, kept until it runs out an hour later, so the planner opened again within the hour syncs without asking, and the address of your Google account, so that Google’s window chooses it by itself when you reconnect. These stay on this device: never in a backup, never in the synced copy, never sent to us. The key made from your passphrase, which opens your sealed copy: never the passphrase itself, and the browser can’t hand the key’s value out. With it, what isn’t secret about the seal, and whether you set aside the offer to seal an older copy. <small>Keys <code>daily-planner-sync:dropbox-auth</code>, <code>daily-planner-sync:google-access</code>, <code>daily-planner-sync:google-account</code>, <code>daily-planner-sync:protection</code>; IndexedDB <code>daily-planner-sync</code></small></td><td data-label="How long">Until you disconnect in Settings (the key and what goes with it once no cloud is left connected on this device), or remove the planner’s access in Dropbox or your Google Account; Google’s access also goes when it runs out, after an hour.</td></tr>
+              <tr><th scope="row">Offline copy</th><td data-label="Why">The planner’s files and the pages of this site you have opened, so the planner works offline. <small>Cache storage <code>daily-planner-</code> followed by the version</small></td><td data-label="How long">Replaced with each new version.</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="offline" aria-labelledby="offline-title">
+          <h2 id="offline-title">The offline copy</h2>
+          <p>When you open the planner, a service worker saves its files in your browser’s cache so it opens and works without a connection. Each new version replaces the previous copy. It holds the app and pages of this site, not your plans.</p>
+        </section>
+
+        <section id="clear" aria-labelledby="clear-title">
+          <h2 id="clear-title">How to clear it</h2>
+          <ul>
+            <li><b>Your planner:</b> in the planner, open <b>Help → Data on this device → Reset local data</b>. Export a backup first if you may want it later.</li>
+            <li><b>Everything this site keeps</b>, including your preferences and the offline copy: clear the site data for this address in your browser’s settings (usually under <b>Privacy</b> or <b>Site settings</b>). Your planner is deleted too, so back it up first.</li>
+            <li><b>Personal sync:</b> disconnect in the planner’s Settings first. On this device, Disconnect removes the cloud’s access (<code>daily-planner-sync:google-access</code> and <code>daily-planner-sync:google-account</code>, or <code>daily-planner-sync:dropbox-auth</code>, which Dropbox is also asked to revoke) and, once no cloud is left connected, the seal: the key, the IndexedDB database <code>daily-planner-sync</code> that holds it, and <code>daily-planner-sync:protection</code>. What stays is about your planner, not your account: <code>daily-planner-sync:cloud</code>, <code>daily-planner-sync:ledger</code>, <code>daily-planner-sync:google</code> and <code>daily-planner-sync:dropbox</code> (the cloud you chose, what changed since the last sync and how it went, so that connecting again compares your days instead of overwriting them), and the recovery snapshots in IndexedDB <code>daily-planner-recovery</code>. Clear the site data to remove those too. The sealed copy in your cloud stays until you delete it there: in Google Drive, <b>Settings → Manage apps → Daily Planner → Delete hidden app data</b>; in Dropbox, the planner’s folder in your <b>Apps</b> folder, and its access under <b>Settings → Connected apps</b>.</li>
+          </ul>
+        </section>
+
+        <section id="others" aria-labelledby="others-title">
+          <h2 id="others-title">Google and Dropbox</h2>
+          <p>If you connect Google Drive, the planner loads Google’s sign-in and Google’s window opens on Google’s own pages, where Google uses its own cookies under <a href="https://policies.google.com/technologies/cookies" rel="noopener">its own policy</a>. Nothing from Google loads before you choose Google Drive in the planner’s settings or reach for its Connect button: the planner then loads Google’s sign-in, so that Google’s window can open from your tap.</p>
+          <p>If you connect Dropbox, the planner takes you to Dropbox’s own page to allow access, then back. There, Dropbox uses its own cookies under <a href="https://www.dropbox.com/privacy/cookies" rel="noopener">its own policy</a>. Nothing from Dropbox loads before you choose Connect.</p>
+        </section>
+
+        <section id="questions" aria-labelledby="questions-title">
+          <h2 id="questions-title">Questions</h2>
+          <p>For any question about what your browser keeps or about your data, <span data-legal-contact="privacy">use the <a href="../../contact/">“Ask a question” form</a></span>. The <a href="../privacy/#rights">privacy policy</a> explains your rights.</p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="lg-foot">
+    <div class="lg-wrap lg-foot__inner">
+      <nav aria-label="Legal">
+        <a href="../privacy/">Privacy</a>
+        <a href="../terms/">Terms</a>
+        <a href="../cookies/" aria-current="page">Cookies</a>
+        <a href="../">Legal notice</a>
+      </nav>
+      <p>© 2026 Ben Morin · <a href="../../?start">Open the planner</a></p>
+    </div>
+  </footer>
+</body>
+</html>

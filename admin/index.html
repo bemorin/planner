@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <script>(function () { var path = location.pathname, next = null; if (path.slice(-1) === '/' || /\.html?$/i.test(path)) return; try { next = new URL(path + '/' + location.search + location.hash, location.href); } catch (error) { return; } if (next.origin === location.origin) location.replace(next.href); })();</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="color-scheme" content="light dark">
+  <title>Planner owner dashboard</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="./admin.css">
+</head>
+<body class="owner">
+  <main class="owner-shell">
+    <header class="owner-head">
+      <div>
+        <p class="modal__eyebrow">Daily Planner · owner</p>
+        <h1>Trends, feedback &amp; demand</h1>
+        <p class="owner-sub" data-owner-sub>Private. Only someone with the admin token can read this data.</p>
+        <div class="owner-browser" data-owner-browser hidden>
+          <svg class="owner-browser__off" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M3 3l18 18"/><path d="M10.6 5.1A9.7 9.7 0 0 1 12 5c5 0 8.5 4.5 9.5 7a13 13 0 0 1-2.4 3.6"/><path d="M6.6 6.6A13.4 13.4 0 0 0 2.5 12c1 2.5 4.5 7 9.5 7a9.6 9.6 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+          <svg class="owner-browser__on" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2.5 12c1-2.5 4.5-7 9.5-7s8.5 4.5 9.5 7c-1 2.5-4.5 7-9.5 7s-8.5-4.5-9.5-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          <p><b data-owner-browser-title>This browser isn’t counted</b><span aria-hidden="true"> · </span><span data-owner-browser-detail>Visits and planner use from here stay out of the figures.</span></p>
+          <label class="owner-browser__toggle"><input class="privacy-switch" type="checkbox" role="switch" data-owner-browser-count><span>Count this browser</span></label>
+        </div>
+      </div>
+      <div class="owner-head__actions" data-owner-actions hidden>
+        <span class="owner-session" data-owner-session></span>
+        <div class="owner-range"><span id="owner-days-label">Totals over</span>
+          <button class="select-trigger owner-select" type="button" id="owner-days" data-owner-days aria-haspopup="listbox" aria-expanded="false" aria-labelledby="owner-days-label owner-days"><span class="select-trigger__value">90 days</span><svg class="select-chevron" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></button>
+        </div>
+        <button class="secondary-button" type="button" data-owner-refresh>Refresh</button>
+        <a class="text-button owner-link-button" href="./configuration/">Configuration</a>
+        <button class="text-button" type="button" data-owner-signout>Sign out</button>
+      </div>
+    </header>
+
+    <p class="owner-notice" data-owner-notice role="status" hidden></p>
+
+    <p class="owner-checking" data-owner-checking>Connecting to the owner API…</p>
+
+    <section class="owner-panel" data-owner-unavailable aria-labelledby="owner-unavailable-title" hidden>
+      <p class="modal__eyebrow">Owner API</p>
+      <h2 id="owner-unavailable-title" data-owner-unavailable-title>The owner API isn’t running here.</h2>
+      <p data-owner-unavailable-detail></p>
+      <h3>How to fix it</h3>
+      <ul class="owner-fix">
+        <li><b>On this computer</b> — stop the server and start it with the API: <code>npm run start:api</code>, then open the <code>/admin/</code> address it prints.</li>
+        <li><b>In production (Cloudflare Pages)</b> — bind the D1 database as <code>DB</code>, add the encrypted secret <code>ADMIN_TOKEN</code>, set the build variable <code>DAILY_PLANNER_API_URL=/api</code>, then redeploy. Step by step: <code>docs/configuration.md</code>.</li>
+      </ul>
+      <div><button class="secondary-button" type="button" data-owner-retry>Try again</button></div>
+    </section>
+
+    <form class="owner-login" data-owner-login hidden>
+      <h2>Sign in</h2>
+      <p>Enter the <code>ADMIN_TOKEN</code> of this deployment and, if two-factor is on, the code from your authenticator app. Only a signed session that ends after 8 hours is kept, in this tab — never the token.</p>
+      <label class="form-field"><span>Admin token</span><input type="password" name="token" autocomplete="current-password" required></label>
+      <label class="form-field"><span>Authenticator code</span><input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" placeholder="123456" aria-describedby="owner-code-hint"><small class="owner-hint" id="owner-code-hint">Leave empty if two-factor isn’t set up.</small></label>
+      <p class="owner-error" data-owner-error role="alert" hidden></p>
+      <button class="primary-button" type="submit" data-owner-submit>Open dashboard</button>
+    </form>
+
+    <div class="owner-body" data-owner-body hidden>
+      <section class="owner-attention" data-owner-attention aria-labelledby="owner-attention-title"></section>
+
+      <section class="owner-kpis" data-owner-kpis aria-label="Key numbers"></section>
+
+      <section class="trends" data-owner-trends aria-labelledby="owner-trends-title">
+        <header class="trends__head">
+          <div><h2 id="owner-trends-title">Trends</h2><p data-trends-caption></p></div>
+          <div class="trends-switch" role="radiogroup" aria-label="Compare by">
+            <span class="trends-switch__indicator" data-trends-indicator aria-hidden="true"></span>
+            <button type="button" role="radio" class="is-active" data-trends-period="week" aria-checked="true">Week</button>
+            <button type="button" role="radio" data-trends-period="month" aria-checked="false" tabindex="-1">Month</button>
+            <button type="button" role="radio" data-trends-period="year" aria-checked="false" tabindex="-1">Year</button>
+          </div>
+        </header>
+        <div class="trends__body" data-trends-body><p class="owner-checking">Loading trends…</p></div>
+        <div class="trends__fresh" data-owner-fresh></div>
+      </section>
+
+      <div class="owner-grid">
+        <section class="owner-card">
+          <header><h2>Sync demand</h2><p>Did people who saw the free Google Drive route still want account sync?</p></header>
+          <div class="owner-funnel" data-owner-funnel></div>
+        </section>
+        <section class="owner-card" aria-labelledby="owner-setup-title">
+          <header class="owner-card__head"><div><h2 id="owner-setup-title">Setup</h2><p>What this deployment has configured. Secret values are never shown, only whether they are set.</p></div>
+            <div class="owner-card__tools"><a class="secondary-button" href="./configuration/">Check every setting</a></div></header>
+          <ul class="owner-setup" data-owner-setup></ul>
+        </section>
+      </div>
+
+      <section class="owner-card" aria-labelledby="owner-questions-title">
+        <header class="owner-card__head"><div><h2 id="owner-questions-title">Questions</h2><p data-owner-questions-caption>Questions from the Contact page’s “Ask a question” form. Reply by email; delete on request.</p></div>
+          <div class="owner-card__tools"><a class="secondary-button" data-owner-questions-csv href="#" download>Export CSV</a></div></header>
+        <div data-owner-questions></div>
+      </section>
+
+      <section class="owner-card">
+        <header class="owner-card__head"><div><h2>Waitlist</h2><p>Emailed once when account sync is ready, then deleted automatically. People can also leave the list from the app.</p></div>
+          <div class="owner-card__tools"><a class="secondary-button" data-owner-waitlist-csv href="#" download>Export CSV</a></div></header>
+        <form class="owner-announce" data-owner-announce aria-labelledby="owner-announce-title" novalidate>
+          <div class="owner-announce__head">
+            <h3 id="owner-announce-title">Announce account sync</h3>
+            <p data-owner-announce-status></p>
+          </div>
+          <label class="form-field"><span>Subject</span><input name="subject" maxlength="150" autocomplete="off" spellcheck="true"></label>
+          <label class="form-field"><span>Message</span><textarea name="text" rows="9" maxlength="8000" spellcheck="true" aria-describedby="owner-announce-hint"></textarea><small class="owner-hint" id="owner-announce-hint">Plain text; a blank line starts a new paragraph. Every email ends with: “This is the one email you asked for. Your address has now been deleted from our list.”</small></label>
+          <div class="owner-announce__actions" data-owner-announce-actions>
+            <button class="secondary-button" type="button" data-owner-announce-test>Send a test to me</button>
+            <button class="primary-button" type="button" data-owner-announce-send>Send to everyone</button>
+          </div>
+          <div class="owner-announce__confirm" data-owner-announce-confirm role="group" aria-labelledby="owner-announce-confirm-text" hidden>
+            <p id="owner-announce-confirm-text" data-owner-announce-confirm-text></p>
+            <div class="owner-announce__actions">
+              <button class="primary-button" type="button" data-owner-announce-confirm-send>Send now</button>
+              <button class="text-button" type="button" data-owner-announce-cancel>Cancel</button>
+            </div>
+          </div>
+          <p class="owner-announce__result" data-owner-announce-result role="status" aria-live="polite" hidden></p>
+        </form>
+        <div data-owner-waitlist></div>
+      </section>
+
+      <section class="owner-card" aria-labelledby="owner-reviews-title">
+        <header><h2 id="owner-reviews-title">Reviews</h2><p data-owner-reviews-caption>Shared from the planner with permission to quote them.</p></header>
+        <div data-owner-reviews></div>
+      </section>
+
+      <section class="owner-card">
+        <header><h2>Feedback by version</h2><p>Each version is rated once per device.</p></header>
+        <div data-owner-versions></div>
+      </section>
+
+      <section class="owner-card">
+        <header class="owner-card__head"><div><h2>Latest feedback</h2><p data-owner-feedback-caption></p></div>
+          <div class="owner-card__tools"><span class="sr-only" id="owner-version-label">Feedback version</span><button class="select-trigger owner-select" type="button" id="owner-version" data-owner-version-filter aria-haspopup="listbox" aria-expanded="false" aria-labelledby="owner-version-label owner-version"><span class="select-trigger__value">All versions</span><svg class="select-chevron" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></button><a class="secondary-button" data-owner-feedback-csv href="#" download>Export CSV</a></div></header>
+        <div data-owner-feedback></div>
+      </section>
+
+      <section class="owner-card">
+        <header><h2>Other signals</h2><p>Anonymous daily counts — no identifiers are ever stored.</p></header>
+        <div data-owner-signals></div>
+      </section>
+    </div>
+  </main>
+  <script src="../runtime-config.js"></script>
+  <script type="module" src="./admin.js"></script>
+</body>
+</html>

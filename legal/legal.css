@@ -1,0 +1,453 @@
+/* Daily Planner legal pages ----------------------------------------------------
+   A calm document page in the landing page's look. Self-contained: the few
+   tokens it needs are copied from welcome/landing.css (keep them in step);
+   it never loads the landing or app stylesheets, external fonts or scripts. */
+
+:root {
+  color-scheme: light;
+  --paper: #f6f3ed;
+  --surface: #fbfaf7;
+  --surface-strong: #ffffff;
+  --ink: #1c1a17;
+  --muted: #6c665e;
+  /* Quiet text reaches 4.5:1 (welcome/landing.css); list markers use --faint-mark. */
+  --faint: #706a62;
+  --faint-mark: #8c867f;
+  --line: #ddd8d0;
+  --line-strong: #c7c0b6;
+  --soft: #efebe4;
+  --tint: #f0ece4;
+  /* The kicker's colour: a shade under the planner's accent, so its small capitals reach 4.5:1 on paper. */
+  --accent: #86674b;
+  --focus: #8b5a3c;
+  /* The scrollbar: the planner's (styles/core.css), the same set in every stylesheet. */
+  --scrollbar-size: 12px;
+  --scrollbar-inset: 3px;
+  --scrollbar-inset-active: 2px;
+  --scrollbar-thumb-min: 2.5rem;
+  --scrollbar-thumb: color-mix(in srgb, var(--line-strong) 62%, var(--paper));
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--muted) 46%, var(--paper));
+  --gutter: 16px;
+  --top-h: 60px;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --paper: #151412;
+    --surface: #1c1b18;
+    --surface-strong: #24221f;
+    --ink: #ece8e1;
+    --muted: #aaa298;
+    --faint: #9a9289;
+    --faint-mark: #80796f;
+    --line: #322f2a;
+    --line-strong: #48433c;
+    --soft: #2b2925;
+    --tint: #1a1917;
+    --accent: #cf9f74;
+    --focus: #e3a37f;
+  }
+}
+
+@media (min-width: 760px) {
+  :root { --gutter: 32px; --top-h: 64px; }
+}
+
+@media (min-width: 1200px) {
+  :root { --gutter: 48px; }
+}
+
+* { box-sizing: border-box; }
+
+/* The planner's scrollbar (styles/core.css): no arrows, no track, a light
+   rounded thumb in a 12px gutter, 6px at rest and 8px, darker, under the
+   pointer or while dragged (the --scrollbar-* tokens). The thumb follows
+   --line-strong, so it is dark in the dark theme. Chromium draws it from the
+   ::-webkit-scrollbar parts below, which it ignores as soon as the standard
+   scrollbar-width / scrollbar-color are set (native arrows come back), so
+   those are for the other browsers only (Firefox keeps `thin`) — the same
+   rule as welcome/landing.css. */
+
+@supports not selector(::-webkit-scrollbar) {
+  html,
+  * { scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent; }
+}
+
+*::-webkit-scrollbar { width: var(--scrollbar-size); height: var(--scrollbar-size); }
+
+*::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track-piece,
+*::-webkit-scrollbar-corner { background: transparent; }
+
+*::-webkit-scrollbar-thumb {
+  min-height: var(--scrollbar-thumb-min);
+  border: var(--scrollbar-inset) solid transparent;
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:active {
+  border-width: var(--scrollbar-inset-active);
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+html { scroll-padding-top: calc(var(--top-h) + 16px); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+body {
+  margin: 0;
+  /* hidden first, for Safari before 16, which has no clip. */
+  overflow-x: hidden;
+  overflow-x: clip;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); text-underline-offset: .18em; }
+
+a:hover { text-decoration-color: currentColor; }
+
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+
+p, li { text-wrap: pretty; }
+
+p { margin: 0; }
+
+:root [hidden] { display: none; }
+
+:where(a, button, input, summary, [tabindex]):focus-visible { outline: 2.5px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
+
+code { padding: .1em .35em; border-radius: 5px; background: var(--soft); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .84em; overflow-wrap: anywhere; }
+
+.lg-skip {
+  position: fixed;
+  z-index: 100;
+  left: 12px;
+  top: 10px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 650;
+  text-decoration: none;
+  transform: translateY(-160%);
+}
+
+.lg-skip:focus { transform: none; }
+
+.lg-wrap { width: min(1120px, 100% - 2 * var(--gutter)); margin-inline: auto; }
+
+/* Header ---------------------------------------------------------------------- */
+
+.lg-top {
+  position: sticky;
+  z-index: 50;
+  top: 0;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  -webkit-backdrop-filter: saturate(1.2) blur(12px);
+  backdrop-filter: saturate(1.2) blur(12px);
+}
+
+.lg-top__inner { height: var(--top-h); display: flex; align-items: center; gap: 16px; }
+
+.lg-brand { display: inline-flex; align-items: center; gap: 10px; margin-right: auto; font-weight: 720; letter-spacing: -.02em; text-decoration: none; white-space: nowrap; }
+
+.lg-brand img { width: 28px; height: 28px; border-radius: 7px; }
+
+@media (prefers-color-scheme: dark) {
+  .lg-brand img { box-shadow: 0 0 0 1px var(--line-strong); }
+}
+
+.lg-btn {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 15px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: .9rem;
+  font-weight: 650;
+  letter-spacing: -.01em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.lg-btn:hover { background: color-mix(in srgb, var(--ink) 84%, var(--paper)); }
+
+/* Title ----------------------------------------------------------------------- */
+
+.lg-main { padding-block: clamp(36px, 6vw, 72px) clamp(56px, 8vw, 96px); }
+
+.lg-head { display: grid; gap: 14px; max-width: 46rem; margin-bottom: clamp(28px, 4vw, 44px); }
+
+.lg-kicker { color: var(--accent); font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+
+.lg-head h1 { font-size: clamp(2rem, 1.4rem + 2.6vw, 2.9rem); font-weight: 750; line-height: 1.06; letter-spacing: -.04em; }
+
+.lg-lead { color: var(--muted); font-size: clamp(1.04rem, .98rem + .3vw, 1.16rem); line-height: 1.6; }
+
+.lg-updated { color: var(--faint); font-size: .9rem; }
+
+/* Layout: contents beside the text on wide screens ---------------------------- */
+
+.lg-layout { display: grid; gap: 28px; }
+
+@media (min-width: 1000px) {
+  .lg-layout { grid-template-columns: 244px minmax(0, 1fr); gap: 36px 56px; align-items: start; }
+  .lg-toc { position: sticky; top: calc(var(--top-h) + 24px); max-height: calc(100vh - var(--top-h) - 48px); overflow-y: auto; }
+}
+
+.lg-toc { padding: 18px 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: .92rem; }
+
+.lg-toc h2 { margin-bottom: 8px; color: var(--muted); font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+
+.lg-toc ol { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; counter-reset: toc; }
+
+.lg-toc li { counter-increment: toc; }
+
+.lg-toc a { position: relative; display: flex; gap: 10px; padding: 4px 0; color: var(--muted); line-height: 1.4; text-decoration: none; }
+
+.lg-toc a::before { content: counter(toc); min-width: 1.2em; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+/* The section being read (legal.js) takes the hover colour, with a short
+   mark against the edge of the contents. */
+.lg-toc a::after { content: ""; position: absolute; left: -20px; top: 6px; bottom: 6px; width: 2px; border-radius: 2px; background: var(--ink); opacity: 0; }
+
+.lg-toc a:hover,
+.lg-toc a[aria-current="true"] { color: var(--ink); }
+
+.lg-toc a:hover::before,
+.lg-toc a[aria-current="true"]::before { color: var(--muted); }
+
+.lg-toc a[aria-current="true"]::after { opacity: 1; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .lg-toc a,
+  .lg-toc a::before { transition: color 160ms ease; }
+  .lg-toc a::after { transition: opacity 160ms ease; }
+}
+
+@media (max-width: 999px) {
+  .lg-toc ol { grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); column-gap: 20px; }
+  .lg-toc a::after { left: -11px; }
+}
+
+/* Document -------------------------------------------------------------------- */
+
+.lg-doc { max-width: 44rem; counter-reset: section; }
+
+.lg-doc > section { padding-block: 28px; border-top: 1px solid var(--line); }
+
+.lg-doc > section:first-child { padding-top: 0; border-top: 0; }
+
+.lg-doc > section { counter-increment: section; }
+
+.lg-doc > section > h2 { display: flex; gap: 12px; margin-bottom: 14px; font-size: clamp(1.25rem, 1.1rem + .5vw, 1.45rem); font-weight: 700; line-height: 1.25; letter-spacing: -.024em; }
+
+.lg-doc > section > h2::before { content: counter(section); min-width: 1.1em; color: var(--faint); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.lg-doc h3 { margin: 22px 0 8px; font-size: 1.02rem; font-weight: 690; letter-spacing: -.012em; }
+
+.lg-doc p + p,
+.lg-doc p + ul,
+.lg-doc ul + p,
+.lg-doc p + .lg-dl,
+.lg-doc .lg-dl + p,
+.lg-doc .lg-table + p,
+.lg-doc p + .lg-table,
+.lg-doc .lg-switch + p,
+.lg-doc ul + .lg-switch,
+.lg-doc p + .lg-switch { margin-top: 12px; }
+
+.lg-doc ul { display: grid; gap: 6px; margin: 0; padding-left: 1.25em; }
+
+.lg-doc li::marker { color: var(--faint-mark); }
+
+/* The counted moments: newspaper columns, read top to bottom */
+.lg-doc ul.lg-moments { display: block; columns: 17rem 2; column-gap: 32px; color: var(--muted); font-size: .95rem; }
+
+.lg-doc ul.lg-moments li { margin-bottom: 3px; break-inside: avoid; }
+
+.lg-note { color: var(--muted); font-size: .94rem; }
+
+/* “In short”: first on small screens, above the text beside the contents on wide ones */
+.lg-summary { max-width: 44rem; padding: 20px 24px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+
+.lg-summary h2 { margin-bottom: 10px; font-size: 1.05rem; font-weight: 700; letter-spacing: -.012em; }
+
+.lg-summary ul { display: grid; gap: 6px; margin: 0; padding-left: 1.25em; }
+
+.lg-summary li::marker { color: var(--faint-mark); }
+
+@media (min-width: 1000px) {
+  .lg-layout > .lg-summary { grid-column: 2; grid-row: 1; }
+  .lg-layout > .lg-summary ~ .lg-toc { grid-column: 1; grid-row: 1 / span 2; }
+  .lg-layout > .lg-summary ~ .lg-doc { grid-column: 2; grid-row: 2; }
+}
+
+/* Definition list: publisher, host, payments */
+.lg-dl { display: grid; margin: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+
+.lg-dl__row { display: grid; gap: 2px 20px; padding: 12px 18px; }
+
+.lg-dl__row + .lg-dl__row { border-top: 1px solid var(--line); }
+
+.lg-dl dt { color: var(--muted); font-size: .9rem; font-weight: 600; }
+
+.lg-dl dd { margin: 0; overflow-wrap: anywhere; }
+
+/* A phone number stays on one line: its groups are part of how it reads. */
+.lg-dl a[href^="tel:"] { white-space: nowrap; }
+
+/* The label column fits “Director of publication” on one line. */
+@media (min-width: 560px) {
+  .lg-dl__row { grid-template-columns: 11rem minmax(0, 1fr); align-items: baseline; }
+}
+
+/* Tables: stacked into labelled cards on narrow screens */
+.lg-table { width: 100%; border-collapse: collapse; font-size: .94rem; line-height: 1.5; }
+
+.lg-table th,
+.lg-table td { padding: 12px 14px 12px 0; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+
+.lg-table thead th { padding-top: 0; color: var(--muted); font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+
+.lg-table tbody th { width: 26%; font-weight: 650; }
+
+.lg-table tbody tr:last-child > * { border-bottom: 0; }
+
+.lg-table--storage tbody th { width: 22%; }
+
+.lg-table--storage td:last-child { width: 24%; }
+
+.lg-table td:last-child,
+.lg-table th:last-child { padding-right: 0; }
+
+.lg-table small { display: block; margin-top: 4px; color: var(--muted); font-size: .86em; font-weight: 400; line-height: 1.45; }
+
+.lg-table small code { font-size: .92em; white-space: nowrap; overflow-wrap: normal; }
+
+.lg-table td small { margin-top: 6px; }
+
+@media (max-width: 640px) {
+  .lg-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .lg-table,
+  .lg-table tbody,
+  .lg-table tr,
+  .lg-table th,
+  .lg-table td { display: block; }
+  .lg-table tr { padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .lg-table tbody tr:last-child { border-bottom: 0; }
+  .lg-table tbody th,
+  .lg-table td:last-child { width: auto; }
+  .lg-table th,
+  .lg-table td { padding: 0; border: 0; }
+  .lg-table td { margin-top: 8px; }
+  .lg-table td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; color: var(--faint); font-size: .74rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+}
+
+/* Usage counts switch (privacy page, when the site’s API is on) */
+.lg-switch { padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+
+.lg-switch label { display: flex; align-items: center; justify-content: space-between; gap: 18px; cursor: pointer; }
+
+.lg-switch strong { display: block; font-weight: 650; }
+
+.lg-switch small { display: block; color: var(--muted); font-size: .88rem; }
+
+.lg-switch input {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 26px;
+  margin: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--soft);
+  cursor: pointer;
+}
+
+.lg-switch input::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .2);
+}
+
+.lg-switch input:checked { border-color: var(--ink); background: var(--ink); }
+
+.lg-switch input:checked::after { left: 21px; background: var(--paper); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .lg-switch input,
+  .lg-switch input::after { transition: background-color 140ms ease, left 160ms cubic-bezier(.22, 1, .36, 1); }
+}
+
+/* Footer ---------------------------------------------------------------------- */
+
+.lg-foot { padding: 28px 0 calc(28px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); color: var(--muted); font-size: .92rem; }
+
+.lg-foot__inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 28px; }
+
+.lg-foot nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+
+.lg-foot a { color: var(--muted); font-weight: 560; text-decoration: none; }
+
+.lg-foot a:hover,
+.lg-foot a[aria-current="page"] { color: var(--ink); }
+
+.lg-foot a[aria-current="page"] { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: .3em; }
+
+/* Print: the document only, black on white ----------------------------------- */
+
+@media print {
+  @page { margin: 16mm 18mm; }
+  :root { --paper: #fff; --surface: #fff; --surface-strong: #fff; --ink: #000; --muted: #333; --faint: #555; --faint-mark: #777; --line: #bbb; --line-strong: #999; --soft: #eee; --accent: #333; color-scheme: light; }
+  body { font-size: 10.5pt; line-height: 1.5; }
+  .lg-top { position: static; border: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .lg-top__inner { height: auto; padding-bottom: 8mm; }
+  .lg-btn,
+  .lg-skip,
+  .lg-toc,
+  .lg-switch,
+  .lg-foot nav { display: none; }
+  .lg-wrap { width: 100%; }
+  .lg-main { padding: 0; }
+  .lg-layout { display: block; }
+  .lg-doc { max-width: none; }
+  .lg-doc > section { padding-block: 12pt; break-inside: auto; }
+  .lg-doc h2,
+  .lg-doc h3 { break-after: avoid; }
+  .lg-dl,
+  .lg-summary { border-color: #bbb; }
+  .lg-summary { max-width: none; margin-bottom: 12pt; break-inside: avoid; }
+  .lg-table tr,
+  .lg-dl__row { break-inside: avoid; }
+  .lg-foot { padding: 8mm 0 0; }
+  a { text-decoration: none; }
+}

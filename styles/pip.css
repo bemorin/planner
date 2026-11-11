@@ -1,0 +1,5 @@
+/* Floating window (Document Picture-in-Picture).
+   The floating window is its own document and cannot read the planner's
+   stylesheets: its styles travel with it in src/features/pip-styles.js.
+   The planner side has nothing to style beyond the header icon button, which
+   uses the shared .icon-button rules. */

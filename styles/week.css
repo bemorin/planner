@@ -1,0 +1,722 @@
+/* Weekly review ---------------------------------------------------------- */
+.week-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 8px; }
+.week-summary > div { padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-strong); }
+.week-summary span { display: block; color: var(--faint); font-size: .58rem; font-weight: 650; text-transform: uppercase; letter-spacing: .07em; }
+.week-summary strong { display: block; margin-top: 2px; font-size: .9rem; }
+
+.week-review-summary {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0 4px;
+}
+.week-review-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-strong);
+}
+.week-review-metrics > div {
+  min-width: 0;
+  padding: 13px 14px;
+  border-right: 1px solid var(--line);
+}
+.week-review-metrics > div:last-child { border-right: 0; }
+.week-review-metrics span,
+.week-review-section__head > span {
+  color: var(--faint);
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+.week-review-metrics strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 1.02rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.025em;
+}
+.week-review-metrics strong small { color: var(--muted); font: inherit; font-weight: 600; }
+.week-review-metrics em {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: .62rem;
+  font-style: normal;
+}
+.week-review-section {
+  display: grid;
+  gap: 9px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.week-review-section__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.week-review-section__head > strong {
+  flex: 0 0 auto;
+  color: var(--ink);
+  font-size: .74rem;
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+}
+.week-review-inline-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: .66rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.week-review-inline-action:hover { color: var(--ink); }
+.week-review-inline-action span { font-size: .72rem; line-height: 1; }
+.week-review-empty-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: .7rem;
+  line-height: 1.45;
+}
+.week-review-time-rows { display: grid; gap: 9px; }
+.week-review-time-row { display: grid; gap: 5px; }
+.week-review-time-row__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+}
+.week-review-time-row__meta > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: .72rem;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.week-review-time-row__meta > span i {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 999px;
+}
+.week-review-time-row__meta > strong {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: .67rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.week-review-time-track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--soft);
+}
+.week-review-time-track > i {
+  display: block;
+  width: var(--week-review-share);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--week-review-color);
+}
+.week-review-list { display: grid; gap: 0; }
+.week-review-list p {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  padding: 7px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  color: var(--ink);
+  font-size: .72rem;
+  line-height: 1.4;
+}
+.week-review-list p:last-child { border-bottom: 0; }
+.week-review-list p > span { min-width: 0; }
+.week-review-list p > em {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: .62rem;
+  font-style: normal;
+}
+@media (max-width: 620px) {
+  .week-review-metrics { grid-template-columns: 1fr; }
+  .week-review-metrics > div { border-right: 0; border-bottom: 1px solid var(--line); }
+  .week-review-metrics > div:last-child { border-bottom: 0; }
+}
+
+/* Week schedule ---------------------------------------------------------- */
+.week-schedule {
+  --week-past-surface: color-mix(in srgb, var(--soft) 62%, var(--paper));
+  position: relative;
+  min-width: 720px;
+  padding-bottom: var(--schedule-pad-bottom);
+}
+
+.week-schedule-head {
+  position: sticky;
+  z-index: 30;
+  top: 0;
+  display: grid;
+  grid-template-columns: 54px repeat(var(--week-days, 7), minmax(0, 1fr));
+  min-height: 46px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 96%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.week-gutter-head {
+  display: grid;
+  place-content: center;
+  gap: 1px;
+  border-right: 1px solid var(--line);
+  color: var(--faint);
+  text-align: center;
+}
+.week-gutter-head small { font-size: .48rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.week-gutter-head strong { color: var(--muted); font-size: .7rem; font-weight: 680; font-variant-numeric: tabular-nums; }
+
+.week-day-head {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 6px 8px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.week-day-head:last-child { border-right: 0; }
+.week-day-head:hover { background: var(--soft); color: var(--ink); }
+.week-day-head span { font-size: .6rem; font-weight: 670; text-transform: uppercase; letter-spacing: .055em; }
+.week-day-head strong { font-size: .88rem; font-weight: 680; font-variant-numeric: tabular-nums; }
+
+.week-schedule-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: 54px repeat(var(--week-days, 7), minmax(0, 1fr));
+  min-width: 100%;
+}
+.week-hour-gutter { position: relative; border-right: 1px solid var(--line); }
+.week-hour-label {
+  position: absolute;
+  left: 0;
+  width: 49px;
+  transform: translateY(-50%);
+  padding-right: 7px;
+  color: var(--faint);
+  font-size: .59rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.week-day-column {
+  position: relative;
+  min-width: 0;
+  border-right: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  background-image: repeating-linear-gradient(to bottom, transparent 0 calc(var(--hour) - 1px), var(--hour-line) calc(var(--hour) - 1px) var(--hour));
+  background-position: 0 var(--schedule-pad-top);
+  background-repeat: repeat-y;
+}
+.week-day-column:last-child { border-right: 0; }
+
+.week-day-head.is-past,
+.week-day-column.is-past { background-color: var(--week-past-surface); }
+.week-day-head.is-past { color: var(--muted); }
+.week-day-column.is-past .week-time-block:not(:hover) { opacity: .74; }
+.week-day-head.is-today,
+.week-day-column.is-today { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--current-time) 68%, transparent); }
+.week-day-head.is-today { color: var(--ink); }
+.week-day-head.is-today strong { color: var(--current-time); }
+.week-day-column.is-drop-target {
+  background-color: color-mix(in srgb, var(--block-color, var(--ink)) 5%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 20%, transparent);
+}
+
+/* Week schedule blocks --------------------------------------------------- */
+.week-time-block {
+  position: absolute;
+  z-index: 5;
+  min-width: 0;
+  overflow: hidden;
+  padding: 7px 7px 6px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--block-color) 9%, var(--surface-strong));
+  box-shadow: inset 3px 0 0 var(--block-color), inset 0 0 0 1px color-mix(in srgb, var(--block-color) 24%, var(--line));
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+  transition: box-shadow 140ms ease, transform 140ms cubic-bezier(.22,1,.36,1), opacity 140ms ease;
+}
+.week-time-block:hover { background: color-mix(in srgb, var(--block-color) 14%, var(--surface-strong)); }
+.week-time-block.is-pressed { transform: scale(.997); }
+.week-time-block.is-dragging {
+  z-index: 30;
+  cursor: grabbing;
+  transform: scale(.995) translateX(2px);
+  opacity: .97;
+  box-shadow: 0 16px 36px rgba(31,27,22,.14), inset 3px 0 0 var(--block-color), inset 0 0 0 1px color-mix(in srgb, var(--block-color) 30%, var(--line));
+}
+/* Done: the block recedes, its text in ink so it still reaches 4.5:1 under the opacity. */
+.week-time-block.done { opacity: .63; }
+.week-time-block.done .week-time-block__category,
+.week-time-block.done .week-time-block__time { color: var(--ink); }
+.week-time-block.is-resizing {
+  z-index: 30;
+  cursor: ns-resize;
+  box-shadow: 0 14px 30px rgba(31,27,22,.12), inset 3px 0 0 var(--block-color), inset 0 0 0 1px color-mix(in srgb, var(--block-color) 30%, var(--line));
+}
+
+.week-time-block__copy {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  display: grid;
+  gap: 2px;
+  padding-right: 26px;
+}
+.week-time-block strong {
+  display: -webkit-box;
+  min-width: 0;
+  padding-right: 0;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: normal;
+  text-wrap: pretty;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  font-size: .68rem;
+  font-weight: 660;
+  line-height: 1.12;
+}
+.week-time-block__meta {
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  line-height: 1.08;
+  white-space: nowrap;
+}
+.week-time-block__category {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: .5rem;
+}
+.week-time-block__category i {
+  position: static;
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 999px;
+}
+.week-time-block__separator {
+  flex: 0 0 auto;
+  color: var(--faint);
+  font-size: .49rem;
+}
+.week-time-block__category-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Muted, not faint: it sits on the category's tint, where dark faint would fall under 4.5:1. */
+.week-time-block__time {
+  flex: 0 0 auto;
+  min-width: max-content;
+  overflow: visible;
+  color: var(--muted);
+  font-size: .49rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* The block opens from a button laid over all of it, a sibling of the checkbox and the resize handle (no control
+   inside another). The pointer is handled by the block itself (drag, or open on release); the button is for the
+   keyboard and screen readers. The block clips what overflows it, so its focus ring goes round the block. */
+.week-time-block__open {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: inherit;
+}
+.week-time-block__open:focus-visible { outline-offset: -2px; }
+@supports selector(:has(*)) {
+  .week-time-block__open:focus-visible { outline: 0; }
+  .week-time-block:has(> .week-time-block__open:focus-visible) {
+    outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+    outline-offset: 2px;
+  }
+}
+/* The box drawn is 20px; the control is 24px, so it is easier to hit (WCAG 2.5.8): the extra 2px all round is
+   invisible, and the focus ring sits where it did. */
+.week-time-block__check {
+  position: absolute;
+  z-index: 3;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+}
+.week-time-block__check::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  box-sizing: border-box;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-strong) 90%, transparent);
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 180ms ease;
+}
+.week-time-block__check::after { left: 8.6px; top: 5.1px; }
+.week-time-block__check:checked { border-color: transparent; background: transparent; box-shadow: none; }
+.week-time-block__check:checked::before { border-color: var(--ink); background: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 7%, transparent); }
+.week-time-block__check:focus-visible { outline-offset: 0; }
+.week-time-block__resize {
+  z-index: 4;
+  height: 12px;
+  touch-action: none;
+  pointer-events: auto;
+}
+.week-time-block:hover .week-time-block__resize::after,
+.week-time-block.is-resizing .week-time-block__resize::after {
+  opacity: 1;
+  transform: translateX(-50%) scaleX(1);
+}
+
+.week-time-block.is-micro {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.week-time-block.is-micro .week-time-block__copy { gap: 1px; }
+.week-time-block.is-micro strong { font-size: .66rem; line-height: 1.05; }
+.week-time-block.is-micro .week-time-block__category,
+.week-time-block.is-micro .week-time-block__time { font-size: .45rem; line-height: 1.02; }
+.week-time-block.is-micro .week-time-block__category i { width: 5px; height: 5px; flex-basis: 5px; }
+.week-time-block.is-micro .week-time-block__check { top: 2px; right: 3px; }
+
+/* Current blocks mirror Day. JS also reconciles this class from line geometry,
+   so every overlapping block turns current even when the minute changes. */
+.week-time-block.is-current {
+  z-index: 7;
+  background: #9a5149;
+  color: #fffaf4;
+  box-shadow: inset 3px 0 0 var(--block-color), inset 0 0 0 1px color-mix(in srgb, #743a35 58%, transparent), 0 4px 13px rgba(69,36,33,.10);
+}
+.week-time-block.is-current strong,
+.week-time-block.is-current .week-time-block__category,
+.week-time-block.is-current .week-time-block__separator,
+.week-time-block.is-current .week-time-block__time { color: #fffaf4; }
+.week-time-block.is-current .week-time-block__check::before {
+  background: color-mix(in srgb, #fffaf4 8%, transparent);
+  border-color: color-mix(in srgb, #fffaf4 70%, transparent);
+}
+.week-time-block.is-current .week-time-block__check:checked::before { background: #fffaf4; border-color: #fffaf4; }
+.week-time-block.is-current .week-time-block__check:checked::after { border-color: var(--current-time); }
+.week-now-line {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  overflow: visible;
+  border-top: 1px solid var(--current-time);
+  pointer-events: none;
+}
+.week-now-line span {
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  top: 0;
+  transform: translateY(-50%);
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: var(--current-time);
+  color: var(--on-current-time, #fff);
+  font-size: .62rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.week-now-line span::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  border-top: 1px solid var(--current-time);
+}
+.week-now-line[data-label-placement="outside-left"] span::after { left: 100%; }
+.week-now-line[data-label-placement="outside-right"] span::after { right: 100%; }
+.week-now-line[data-label-placement^="inside"] span::after { display: none; }
+
+.week-schedule-hover {
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  right: 0;
+  height: 1px;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 34%, transparent);
+  pointer-events: none;
+}
+.week-schedule-hover span {
+  position: absolute;
+  left: 6px;
+  top: -12px;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: var(--surface-strong);
+  color: var(--muted);
+  box-shadow: 0 3px 12px rgba(31,27,22,.08), inset 0 0 0 1px var(--line);
+  font-size: .53rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 980px) { .week-schedule { min-width: 760px; } }
+@media (max-width: 760px) {
+  .workspace.is-week-view .schedule-scroll {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-padding-inline: 54px 12px;
+  }
+  .week-schedule { min-width: 760px; }
+  .week-gutter-head,
+  .week-hour-gutter {
+    position: sticky;
+    left: 0;
+    background: var(--paper);
+    box-shadow: 1px 0 0 var(--line), 6px 0 12px color-mix(in srgb, var(--paper) 82%, transparent);
+  }
+  .week-gutter-head { z-index: 36; }
+  .week-hour-gutter { z-index: 24; }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .week-time-block__resize::after {
+    opacity: .55;
+    transform: translateX(-50%) scaleX(.75);
+  }
+}
+
+/* Unresolved work is a decision surface, not another plain review divider. */
+.week-review-section--unresolved {
+  gap: 10px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-strong);
+}
+.week-review-section--unresolved .week-review-section__head { align-items: center; }
+.week-review-section__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.week-review-section__title > em {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: .58rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.week-review-section--unresolved .week-review-inline-action {
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--muted);
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+}
+.week-review-section--unresolved .week-review-inline-action:hover,
+.week-review-section--unresolved .week-review-inline-action:focus-visible {
+  outline: 0;
+  border-color: var(--line);
+  background: var(--soft);
+  color: var(--ink);
+}
+.week-review-section--unresolved .week-review-list p:first-child { padding-top: 4px; }
+
+/* 1.19: titles of blocks that start above the visible area stay readable,
+   just under the sticky day header (46px + border). */
+.week-time-block { overflow: hidden; overflow: clip; }
+.week-time-block:not(.is-micro) .week-time-block__copy { position: sticky; top: 52px; background: inherit; }
+.week-time-block.is-now-done { box-shadow: inset 3px 0 0 var(--block-color), inset 0 0 0 1.5px color-mix(in srgb, var(--current-time) 50%, transparent); }
+
+/* 1.21: each day header carries that day's plan ------------------------- */
+.week-schedule { --week-head-h: 46px; }
+.week-day-head {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 7px 10px 8px;
+  text-align: left;
+}
+.week-day-head__date { display: flex; align-items: baseline; justify-content: flex-start; gap: 7px; }
+.week-day-head .week-day-head__plan { min-width: 0; display: grid; gap: 3px; font-size: inherit; text-transform: none; letter-spacing: 0; }
+.week-day-head__mit { min-width: 0; display: flex; align-items: center; gap: 6px; color: var(--ink); }
+.week-day-head__mit > span { min-width: 0; overflow: hidden; font-size: .66rem; font-weight: 620; letter-spacing: -.005em; text-overflow: ellipsis; text-transform: none; white-space: nowrap; }
+.week-day-head__mit.is-done > span { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 55%, transparent); }
+.week-day-head__mit.is-empty > span { color: var(--faint); font-weight: 520; }
+.week-day-head .week-day-head__meta { overflow: hidden; color: var(--faint); font-size: .58rem; font-weight: 580; letter-spacing: 0; text-overflow: ellipsis; text-transform: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.week-day-head .week-day-head__date span { font-size: .6rem; font-weight: 670; text-transform: uppercase; letter-spacing: .055em; }
+.week-day-head:hover .week-day-head__mit.is-empty > span { color: var(--muted); }
+.week-day-head:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent); }
+
+/* A small check that only shows state (the day itself is where it's ticked). */
+.week-plan-check {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1.3px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--surface-strong);
+}
+.week-plan-check.is-done { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+.week-plan-check svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+
+@media (min-width: 791px) {
+  .week-schedule { --week-head-h: 78px; }
+  .week-schedule-head { min-height: var(--week-head-h); }
+}
+@media (max-width: 790px) {
+  .week-day-head { flex-direction: row; align-items: center; justify-content: center; padding: 6px 8px; }
+  .week-day-head .week-day-head__plan { display: none; }
+}
+.week-time-block:not(.is-micro) .week-time-block__copy { top: calc(var(--week-head-h) + 6px); }
+
+/* An empty week says how blocks are added here: over the visible grid, not
+   scrolling with it, and never in the way of a click. */
+.schedule-section { position: relative; }
+.week-empty-hint {
+  position: absolute;
+  z-index: 31;
+  left: 54px;
+  right: 8px;
+  top: calc(var(--week-head-h, 46px) + var(--hour) * 1.25);
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  pointer-events: none;
+}
+.workspace:not(.is-week-view) .week-empty-hint { display: none; }
+@media (min-width: 791px) { .schedule-section { --week-head-h: 78px; } }
+.week-empty-hint span {
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-strong) 88%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 600;
+}
+.week-empty-hint__touch { display: none; }
+@media (hover: none), (pointer: coarse) {
+  .week-empty-hint__pointer { display: none; }
+  .week-empty-hint__touch { display: inline; }
+}
+
+/* Phones: Week's Plan tab is an agenda of the planning days ------------- */
+.week-agenda { display: none; }
+@media (max-width: 790px) {
+  .workspace.is-week-view[data-mobile-active="plan"] .week-agenda { display: block; height: calc(100% - var(--mobile-dock-clearance)); }
+  .workspace.is-week-view[data-mobile-active="plan"] .schedule-section { display: none; }
+}
+.week-agenda__list { display: grid; gap: 8px; margin: 0; padding: 4px 0 20px; list-style: none; }
+.week-agenda__day {
+  width: 100%;
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 18px;
+  align-items: start;
+  gap: 12px;
+  padding: 12px 10px 12px 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface-strong);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+.week-agenda__day:hover,
+.week-agenda__day:focus-visible { outline: 0; border-color: var(--line-strong); }
+.week-agenda__day:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+.week-agenda__day:active { background: color-mix(in srgb, var(--soft) 60%, var(--surface-strong)); }
+.week-agenda__day.is-today { border-color: color-mix(in srgb, var(--current-time) 55%, var(--line)); box-shadow: inset 3px 0 0 var(--current-time); }
+.week-agenda__day.is-past:not(.is-today) { background: color-mix(in srgb, var(--surface) 70%, var(--paper)); }
+.week-agenda__day.is-empty { min-height: 56px; align-items: center; border-style: dashed; background: transparent; }
+.week-agenda__date { display: grid; justify-items: start; gap: 1px; padding-top: 1px; }
+.week-agenda__date > span { color: var(--faint); font-size: .6rem; font-weight: 680; letter-spacing: .055em; text-transform: uppercase; }
+.week-agenda__date strong { font-size: 1.2rem; font-weight: 700; line-height: 1.05; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.week-agenda__day.is-today .week-agenda__date strong { color: var(--current-time); }
+.week-agenda__date em { margin-top: 3px; padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--current-time) 13%, var(--surface-strong)); color: color-mix(in srgb, var(--current-time) 85%, var(--ink)); font-size: .56rem; font-style: normal; font-weight: 700; }
+.week-agenda__date em.is-closed { background: var(--soft); color: var(--muted); }
+.week-agenda__body { min-width: 0; display: grid; gap: 6px; }
+.week-agenda__mit { min-width: 0; display: grid; grid-template-columns: 14px minmax(0, 1fr); align-items: start; gap: 8px; font-size: .84rem; font-weight: 650; line-height: 1.3; letter-spacing: -.012em; }
+.week-agenda__mit .week-plan-check { width: 14px; height: 14px; margin-top: 2px; }
+.week-agenda__mit.is-done > span:last-child { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 55%, transparent); }
+.week-agenda__mit.is-empty { grid-template-columns: minmax(0, 1fr); color: var(--faint); font-size: .76rem; font-weight: 560; }
+.week-agenda__others { display: grid; gap: 4px; }
+.week-agenda__others > span { min-width: 0; display: grid; grid-template-columns: 14px minmax(0, 1fr); align-items: center; gap: 8px; color: var(--muted); font-size: .74rem; line-height: 1.3; }
+.week-agenda__others > span > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.week-agenda__others .week-plan-check { justify-self: center; width: 11px; height: 11px; border-radius: 3.5px; }
+.week-agenda__others .week-plan-check svg { width: 8px; height: 8px; }
+.week-agenda__others > .is-done > span { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 50%, transparent); }
+.week-agenda__meta { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--faint); font-size: .66rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.week-agenda__meta span + span::before { content: ""; display: inline-block; width: 3px; height: 3px; margin: 0 9px 2px -6px; border-radius: 99px; background: currentColor; opacity: .7; }
+.week-agenda__empty { color: var(--faint); font-size: .76rem; font-weight: 560; }
+.week-agenda__chevron { align-self: center; width: 18px; height: 18px; fill: none; stroke: var(--faint-mark); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }

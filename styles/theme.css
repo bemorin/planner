@@ -1,0 +1,145 @@
+/* Theme, motion hand-off and focus ------------------------------------------
+   Dark tokens apply when the visitor's system prefers dark (unless they chose
+   Light in Settings) or when they explicitly chose Dark. Screen only: printed
+   pages always use the light print stylesheet. */
+
+:root { color-scheme: light; --modal-scrim: rgba(32, 29, 25, .30); }
+
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #151412;
+    --surface: #1c1b18;
+    --surface-strong: #24221f;
+    --ink: #ece8e1;
+    --muted: #a9a198;
+    --faint: #9a9289;
+    --faint-mark: #80796f;
+    --line: #322f2a;
+    --line-strong: #48433c;
+    --soft: #2b2925;
+    --accent: #cf9f74;
+    --danger: #d9806f;
+    --current-time: #d0695c;
+    --on-current-time: #151412;
+    --hour-line: color-mix(in srgb, #8f8a83 15%, transparent);
+    --shadow: 0 18px 60px rgba(0, 0, 0, .5);
+    --modal-scrim: rgba(6, 5, 4, .58);
+    --hz-misogi: #e3916a;
+    --hz-milestone: #dcaa76;
+    --hz-adventure: #63b5af;
+    --hz-keydate: #a99be0;
+    --hz-habit: #8dbb8e;
+    --text-edit-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='24' viewBox='0 0 16 24'%3E%3Cpath d='M8 2v20M4.5 2h7M4.5 22h7' fill='none' stroke='%23ece8e1' stroke-width='1.35' stroke-linecap='round'/%3E%3C/svg%3E") 8 12, text;
+  }
+}
+
+@media screen {
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #151412;
+    --surface: #1c1b18;
+    --surface-strong: #24221f;
+    --ink: #ece8e1;
+    --muted: #a9a198;
+    --faint: #9a9289;
+    --faint-mark: #80796f;
+    --line: #322f2a;
+    --line-strong: #48433c;
+    --soft: #2b2925;
+    --accent: #cf9f74;
+    --danger: #d9806f;
+    --current-time: #d0695c;
+    --on-current-time: #151412;
+    --hour-line: color-mix(in srgb, #8f8a83 15%, transparent);
+    --shadow: 0 18px 60px rgba(0, 0, 0, .5);
+    --modal-scrim: rgba(6, 5, 4, .58);
+    --hz-misogi: #e3916a;
+    --hz-milestone: #dcaa76;
+    --hz-adventure: #63b5af;
+    --hz-keydate: #a99be0;
+    --hz-habit: #8dbb8e;
+    --text-edit-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='24' viewBox='0 0 16 24'%3E%3Cpath d='M8 2v20M4.5 2h7M4.5 22h7' fill='none' stroke='%23ece8e1' stroke-width='1.35' stroke-linecap='round'/%3E%3C/svg%3E") 8 12, text;
+  }
+}
+
+/* Dark surfaces need a little more category tint to stay scannable. :where()
+   keeps these at single-class specificity so state rules (current, done) win. */
+@media screen and (prefers-color-scheme: dark) {
+  :where(:root:not([data-theme="light"])) .time-block { background: color-mix(in srgb, var(--block-color, var(--accent)) 17%, var(--surface)); }
+  :where(:root:not([data-theme="light"])) .week-time-block { background: color-mix(in srgb, var(--block-color) 16%, var(--surface-strong)); }
+}
+
+@media screen {
+  :where(:root[data-theme="dark"]) .time-block { background: color-mix(in srgb, var(--block-color, var(--accent)) 17%, var(--surface)); }
+  :where(:root[data-theme="dark"]) .week-time-block { background: color-mix(in srgb, var(--block-color) 16%, var(--surface-strong)); }
+}
+
+.modal__backdrop { background: var(--modal-scrim); }
+
+/* Header actions are grouped: find · view · reflect · output/settings. */
+
+.actions-divider { width: 1px; height: 18px; flex: 0 0 auto; margin: 0 7px; background: var(--line); }
+
+@media (max-width: 790px) {
+  .actions-divider { display: none; }
+}
+
+/* Appearance control (Settings) */
+
+.theme-switch {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--soft);
+}
+
+.theme-switch button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 630;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.theme-switch button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+.theme-switch button:hover { color: var(--ink); }
+
+.theme-switch button.is-active { background: var(--surface-strong); color: var(--ink); box-shadow: 0 1px 4px rgba(25, 22, 17, .08), inset 0 0 0 1px var(--line); }
+
+/* Motion hand-off: when Motion animates dialogs and popovers, their CSS
+   transitions step aside (CSS transitions outrank Web Animations). */
+
+.has-motion .modal__panel,
+.has-motion .app-popover { transition: none; }
+
+/* Keyboard focus is always visible, without changing pointer interactions. */
+
+:where(button, a, [role="button"], [role="tab"], summary, input[type="checkbox"]):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 2px;
+}
+
+:where(.hz-tab, .hz-tile, .hz-event, .hz-next-item, .hz-add-option, .hz-slot):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--kind, var(--accent)) 70%, transparent);
+  outline-offset: 2px;
+}
+
+/* A dialog panel takes focus only to hold it (when the control that opened a
+   dialog above it has been re-rendered); it is not a control, so no ring. */
+.modal__panel[tabindex="-1"]:focus { outline: none; }
+
+/* A dialog's title takes focus as it opens (src/ui/dialog-focus.js), so a screen reader starts there and
+   Tab goes on to its first control; it is not a control, so no ring. */
+[data-dialog-title]:focus { outline: none; }

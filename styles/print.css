@@ -1,0 +1,349 @@
+/* Dedicated print surface. The live application never participates in print layout. */
+.print-sheet { display: none; }
+
+@media print {
+  @page { size: landscape; margin: 6mm; }
+
+  html,
+  body {
+    margin: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: hidden !important;
+    background: #fff !important;
+  }
+
+  body > :not(.print-sheet) { display: none !important; }
+  body > .print-sheet { display: block !important; }
+
+  .print-sheet {
+    position: relative !important;
+    width: 100% !important;
+    /* 178mm fits A4 and Letter landscape inside the 6mm page margin; the year map asks for more. */
+    height: var(--print-sheet-height, 178mm) !important;
+    min-height: 0 !important;
+    max-height: var(--print-sheet-height, 178mm) !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-after: avoid-page !important;
+    color: #171613;
+    background: #fff;
+    font-family: inherit;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
+/* Sheet-only classes of the printed page. Page-level rules stay in @media print. */
+.print-sheet * { box-sizing: border-box; }
+
+.print-sheet-head {
+  height: 13mm;
+  display: flex;
+  align-items: flex-start;
+  padding: 0 0 3mm;
+  border-bottom: .22mm solid #d8d3cc;
+}
+.print-sheet-head span {
+  display: block;
+  margin-bottom: 1mm;
+  color: #8b867f;
+  font-size: 6pt;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.print-sheet-head h1 { margin: 0; font-size: 12pt; line-height: 1.1; }
+.print-sheet-domain {
+  position: absolute !important;
+  left: 0;
+  right: 0;
+  bottom: .4mm;
+  color: #8b867f !important;
+  font-size: 6pt;
+  text-align: center;
+  text-decoration: none !important;
+}
+
+@media print {
+  /* Daily */
+  .print-daily-layout {
+    height: 158mm;
+    display: grid;
+    grid-template-columns: minmax(50mm, 29fr) minmax(0, 71fr);
+    gap: 5mm;
+    padding-top: 3mm;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  .print-plan-column {
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto auto auto auto minmax(34mm, 1fr);
+    gap: 2.5mm;
+  }
+  .print-plan-column section { min-width: 0; }
+  .print-plan-column h2,
+  .print-schedule-column > h2 { margin: 0 0 1.2mm; font-size: 7.2pt; line-height: 1.2; }
+  .print-plan-column p {
+    margin: 0;
+    min-height: 4.8mm;
+    padding: 1.2mm .4mm;
+    border-bottom: .2mm solid #d8d3cc;
+    font-size: 6.8pt;
+    line-height: 1.3;
+  }
+  .print-check-row,
+  .print-empty-row {
+    min-height: 6.4mm;
+    display: grid;
+    grid-template-columns: 4mm minmax(0, 1fr);
+    align-items: center;
+    gap: 1.8mm;
+    padding: .8mm 1mm;
+    border: .2mm solid #ded9d2;
+    border-radius: 1.8mm;
+    margin-bottom: 1.2mm;
+  }
+  .print-check-row > span { width: 3.4mm; height: 3.4mm; border: .2mm solid #cfc9c1; border-radius: .9mm; }
+  .print-check-row p { min-height: 0; padding: 0; border: 0; }
+  .print-empty-row { grid-template-columns: 1fr; }
+  .print-notes { min-height: 0; display: grid; grid-template-rows: auto 1fr; }
+  .print-notes p { min-height: 0; height: 100%; border: .2mm solid #ded9d2; border-radius: 2mm; }
+  .print-schedule-column { min-width: 0; }
+  .print-schedule-grid {
+    height: 147mm;
+    display: grid;
+    grid-template-columns: 13mm minmax(0, 1fr);
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Shared schedule geometry */
+  .print-hour-gutter { position: relative; min-width: 0; border-right: .2mm solid #d8d3cc; }
+  .print-hour-label {
+    position: absolute;
+    right: 1.5mm;
+    transform: translateY(-50%);
+    color: #88827b;
+    font-size: 5.2pt;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .print-schedule-canvas,
+  .print-week-column { position: relative; min-width: 0; background: transparent !important; }
+  .print-hour-line {
+    position: absolute;
+    z-index: 0;
+    left: 0;
+    right: 0;
+    display: block !important;
+    height: .24mm;
+    border: 0 !important;
+    background: #d8d3cc !important;
+    transform: translateY(-.12mm);
+    pointer-events: none;
+  }
+  .print-block,
+  .print-week-block {
+    position: absolute;
+    z-index: 1;
+    top: var(--p-top);
+    left: calc(var(--p-left) + .6mm);
+    width: calc(var(--p-width) - 1.2mm);
+    height: var(--p-height);
+    min-height: 3.2mm;
+    overflow: hidden;
+    padding: 1mm 5mm 1mm 1.7mm;
+    border-radius: 1.4mm;
+    background: color-mix(in srgb, var(--p-color) 10%, #f7f5f1);
+    box-shadow: inset 1mm 0 0 var(--p-color), inset 0 0 0 .16mm color-mix(in srgb, var(--p-color) 38%, #ddd8d1);
+  }
+  .print-block strong,
+  .print-week-block strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 6pt; line-height: 1.2; }
+  .print-block span,
+  .print-week-block span { display: block; margin-top: .4mm; color: #77716a; font-size: 4.9pt; white-space: nowrap; }
+  .print-block small { display: block; margin-top: .4mm; color: #77716a; font-size: 4.7pt; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .print-block p { margin: .5mm 0 0; color: #56514b; font-size: 4.7pt; line-height: 1.2; }
+  .print-block.is-done { opacity: .55; }
+  .print-week-block.is-done { opacity: .55; }
+  .print-block-checkbox {
+    position: absolute;
+    z-index: 2;
+    top: 1mm;
+    right: 1mm;
+    width: 3mm;
+    height: 3mm;
+    border: .2mm solid color-mix(in srgb, var(--p-color) 38%, #cfc9c1);
+    border-radius: .8mm;
+    background: #fff;
+  }
+  .print-block-checkbox.is-checked {
+    background: var(--p-color);
+    border-color: var(--p-color);
+  }
+  .print-block-checkbox.is-checked::after {
+    content: "";
+    position: absolute;
+    left: .9mm;
+    top: .38mm;
+    width: .72mm;
+    height: 1.45mm;
+    border: solid #fff;
+    border-width: 0 .28mm .28mm 0;
+    transform: rotate(45deg);
+  }
+
+  /* Week */
+  .print-week-head {
+    height: 9mm;
+    display: grid;
+    grid-template-columns: 13mm repeat(var(--week-days, 7), minmax(0, 1fr));
+    margin-top: 2.5mm;
+    border-bottom: .2mm solid #d8d3cc;
+  }
+  .print-week-head > div,
+  .print-week-corner {
+    min-width: 0;
+    display: grid;
+    align-content: center;
+    gap: .3mm;
+    padding: .8mm 1.1mm;
+    border-left: .2mm solid #ece8e2;
+  }
+  .print-week-corner { border-left: 0; }
+  .print-week-head span,
+  .print-week-corner small { color: #8a847d; font-size: 5pt; text-transform: uppercase; letter-spacing: .04em; }
+  .print-week-head strong,
+  .print-week-corner strong { font-size: 7.1pt; }
+  .print-week-body {
+    position: relative;
+    height: 142mm;
+    display: grid;
+    grid-template-columns: 13mm repeat(var(--week-days, 7), minmax(0, 1fr));
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  .print-week-column { border-left: .2mm solid #ece8e2; }
+}
+
+@media print {
+  .print-check-row.is-done { opacity: .58; }
+  .print-check-row.is-done p { text-decoration: line-through; }
+  .print-checkbox { position: relative; flex: 0 0 auto; }
+  .print-check-row.is-done .print-checkbox::after {
+    content: "";
+    position: absolute;
+    left: 1.05mm;
+    top: .48mm;
+    width: .9mm;
+    height: 1.7mm;
+    border: solid #4f4a44;
+    border-width: 0 .3mm .3mm 0;
+    transform: rotate(45deg);
+  }
+}
+
+/* Horizon year map: one landscape page. Fixed light colours, like Day and Week.
+   Empty parts keep their ruled lines and boxes so a blank year can be filled by hand.
+   Sheet-scoped, outside @media print, so the sheet's rules never reach the planner. */
+/* 190mm still fits A4 (198mm) and Letter (204mm) landscape: more room to write by hand. */
+.print-sheet--year { --print-sheet-height: 190mm; --pyr-line: #ddd8d1; --pyr-rule: #e6e1da; --pyr-muted: #8b867f; --pyr-faint: #aaa49c; --pyr-misogi: #a5522e; --pyr-milestone: #b97a46; --pyr-adventure: #2f6d70; --pyr-keydate: #5d4f8f; }
+.print-sheet--year h1,
+.print-sheet--year h2,
+.print-sheet--year h3,
+.print-sheet--year p,
+.print-sheet--year ol,
+.print-sheet--year ul,
+.print-sheet--year figure { margin: 0; padding: 0; }
+.print-sheet--year ol,
+.print-sheet--year ul { list-style: none; }
+
+.print-sheet--year .pyr-head { height: 16mm; align-items: center; justify-content: space-between; gap: 6mm; padding-bottom: 2mm; }
+.pyr-head h1 { font-size: 16pt; letter-spacing: -.02em; }
+.pyr-legend { display: flex; flex-wrap: wrap; gap: 1mm 3.2mm; margin-left: auto; color: #6f6a63; font-size: 5.6pt; }
+.pyr-legend li { display: inline-flex; align-items: center; gap: 1mm; }
+.pyr-legend i,
+.pyr-event i { width: 1.6mm; height: 1.6mm; flex: 0 0 auto; border-radius: 50%; background: var(--kind); }
+.pyr-kind--misogi { --kind: var(--pyr-misogi); }
+.pyr-kind--milestone { --kind: var(--pyr-milestone); }
+.pyr-kind--adventure { --kind: var(--pyr-adventure); }
+.pyr-kind--keydate { --kind: var(--pyr-keydate); }
+.pyr-legend .pyr-kind--milestone i,
+.pyr-event.pyr-kind--milestone i { border-radius: .2mm; transform: rotate(45deg) scale(.86); }
+
+.pyr-paint { display: flex; align-items: center; gap: 2.2mm; }
+.pyr-paint figcaption { display: grid; color: var(--pyr-muted); font-size: 5.4pt; line-height: 1.25; text-align: right; }
+.pyr-paint figcaption b { color: #171613; font-size: 9pt; }
+.pyr-paint__grid { display: grid; gap: .16mm; }
+.pyr-paint__row { display: grid; grid-template-columns: 1.6mm repeat(31, .9mm); gap: .16mm; align-items: center; }
+.pyr-paint__row span { margin: 0; color: var(--pyr-faint); font-size: 3.4pt; line-height: .9mm; letter-spacing: 0; }
+.pyr-paint__row i { height: .9mm; border-radius: .15mm; background: #fff; box-shadow: inset 0 0 0 .08mm #d8d2ca; }
+.pyr-paint__row i.is-future { background: #f4f1ec; box-shadow: none; }
+.pyr-paint__row i.is-level-1 { background: color-mix(in srgb, var(--pyr-misogi) 34%, #fff); box-shadow: none; }
+.pyr-paint__row i.is-level-2 { background: color-mix(in srgb, var(--pyr-misogi) 66%, #fff); box-shadow: none; }
+.pyr-paint__row i.is-level-3 { background: var(--pyr-misogi); box-shadow: none; }
+
+.pyr-body { height: calc(var(--print-sheet-height) - 27mm); display: grid; grid-template-columns: 72mm minmax(0, 1fr); gap: 4mm; padding-top: 2.6mm; }
+.pyr-side { min-height: 0; display: grid; grid-template-rows: minmax(0, 15fr) minmax(0, 13fr) minmax(0, 8fr) minmax(0, 9.5fr); gap: 2.4mm; }
+.pyr-card,
+.pyr-month { min-width: 0; min-height: 0; overflow: hidden; border: .2mm solid var(--pyr-line); border-radius: 2mm; }
+.pyr-card { display: grid; grid-template-rows: auto minmax(0, 1fr); padding: 1.8mm 2.4mm 1.4mm; }
+.pyr-card--misogi { grid-template-rows: auto auto auto auto minmax(0, 1fr); }
+.pyr-card > header { display: flex; align-items: baseline; justify-content: space-between; gap: 2mm; margin-bottom: .6mm; }
+.pyr-card h2 { font-size: 7.4pt; line-height: 1.2; }
+.pyr-card header small { overflow: hidden; color: var(--pyr-faint); font-size: 5.1pt; white-space: nowrap; text-overflow: ellipsis; }
+.pyr-card h3 { margin-top: 1.2mm; color: var(--pyr-muted); font-size: 5.4pt; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+
+.pyr-misogi { display: grid; grid-template-columns: 3.2mm minmax(0, 1fr); align-items: start; gap: 1.5mm; padding-top: .6mm; }
+.pyr-misogi strong { display: -webkit-box; overflow: hidden; font-size: 8pt; line-height: 1.25; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.pyr-misogi .pyr-box { align-self: start; margin-top: .5mm; }
+.pyr-misogi.is-done strong { text-decoration: line-through; text-decoration-color: #9a948c; }
+.pyr-lines { display: block; background: repeating-linear-gradient(to bottom, transparent 0 4.3mm, var(--pyr-line) 4.3mm 4.5mm); }
+.pyr-lines--2 { height: 9mm; }
+.pyr-when { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: end; gap: 1.6mm; margin-top: .8mm; padding: .6mm 0 .5mm; border-bottom: .2mm solid var(--pyr-rule); font-size: 6.4pt; }
+.pyr-when span { color: var(--pyr-muted); font-size: 5.2pt; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+
+.pyr-list { min-height: 0; display: grid; grid-auto-rows: minmax(0, 1fr); }
+.pyr-row { min-width: 0; display: grid; grid-template-columns: 3.2mm 2.6mm minmax(0, 1fr) auto; align-items: end; gap: 1.3mm; padding-bottom: .7mm; border-bottom: .2mm solid var(--pyr-rule); font-size: 6.3pt; line-height: 1.2; }
+.pyr-row--tall { grid-template-columns: 2.6mm minmax(0, 1fr); }
+.pyr-row--habit { grid-template-columns: 13mm minmax(0, 1fr) auto; }
+.pyr-row__index { color: var(--pyr-faint); font-size: 5.6pt; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pyr-row__quarter { display: grid; color: var(--pyr-faint); font-size: 4.8pt; line-height: 1.15; }
+.pyr-row__quarter b { color: #4f7350; font-size: 6.4pt; }
+.pyr-row__text { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pyr-row__text--wrap { display: -webkit-box; white-space: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.pyr-row__when { color: var(--pyr-muted); font-size: 5.4pt; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pyr-row.is-done .pyr-row__text { color: #77716a; text-decoration: line-through; text-decoration-color: #aaa49c; }
+.pyr-blank { display: block; min-width: 0; height: 2.4mm; }
+.pyr-blank--date { width: 12mm; }
+.pyr-box { position: relative; width: 2.9mm; height: 2.9mm; align-self: end; margin-bottom: .1mm; border: .2mm solid #c9c3bb; border-radius: .7mm; background: #fff; }
+.pyr-box.is-checked { border-color: #4f4a44; background: #4f4a44; }
+.pyr-box.is-checked::after { content: ""; position: absolute; left: .85mm; top: .3mm; width: .75mm; height: 1.5mm; border: solid #fff; border-width: 0 .28mm .28mm 0; transform: rotate(45deg); }
+
+.pyr-months { min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 2.4mm; }
+.pyr-month { display: grid; grid-template-rows: auto auto minmax(0, 1fr); padding: 1.6mm 2mm 1.2mm; }
+.pyr-month > header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: .8mm; }
+.pyr-month h3 { font-size: 7pt; line-height: 1.2; }
+.pyr-month header small { color: #4f7350; font-size: 5.2pt; font-weight: 700; }
+.pyr-cal__head,
+.pyr-cal__days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.pyr-cal__head span { color: var(--pyr-faint); font-size: 4.2pt; font-weight: 700; line-height: 2.2mm; text-align: center; }
+.pyr-cal__days { row-gap: .25mm; }
+.pyr-day { height: 2.75mm; color: #3b3732; font-size: 4.7pt; line-height: 2.75mm; text-align: center; font-variant-numeric: tabular-nums; }
+.pyr-day.is-weekend { color: var(--pyr-faint); }
+.pyr-day.is-misogi { background: color-mix(in srgb, var(--pyr-misogi) 24%, #fff); color: #171613; }
+.pyr-day.is-adventure { background: color-mix(in srgb, var(--pyr-adventure) 20%, #fff); color: #171613; }
+.pyr-day.is-keydate { background: color-mix(in srgb, var(--pyr-keydate) 18%, #fff); color: #171613; }
+.pyr-day.is-milestone { border-radius: .6mm; box-shadow: inset 0 0 0 .25mm var(--pyr-milestone); color: #171613; font-weight: 700; }
+.pyr-events { min-height: 0; overflow: hidden; margin-top: 1mm; background: repeating-linear-gradient(to bottom, transparent 0 3.25mm, var(--pyr-rule) 3.25mm 3.45mm); }
+.pyr-event { height: 3.45mm; display: grid; grid-template-columns: 1.6mm auto minmax(0, 1fr); align-items: center; gap: .9mm; padding-bottom: .2mm; font-size: 5.1pt; line-height: 1; white-space: nowrap; }
+.pyr-event b { color: #5e5952; font-weight: 650; font-variant-numeric: tabular-nums; }
+.pyr-event span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pyr-event.is-done span { color: #8b867f; text-decoration: line-through; }
+.pyr-event--more { display: block; color: var(--pyr-muted); }
+
+.pyr-foot { position: absolute; left: 0; bottom: .4mm; color: var(--pyr-faint); font-size: 5pt; }

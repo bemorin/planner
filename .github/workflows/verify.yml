@@ -1,0 +1,33 @@
+name: Verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    # Pinned: ubuntu-latest moves to a new image from 19 October 2026; move on purpose, after a green run.
+    runs-on: ubuntu-24.04
+    # Actions pinned to a commit (1.35): a moved tag can't change what runs here. Update the SHA and its comment together.
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Verify production release
+        shell: bash
+        run: npm run verify 2>&1 | tee verify.log; exit "${PIPESTATUS[0]}"
+
+      # Failures as annotations, readable on the run's page and through the API.
+      - name: Report failures
+        if: failure()
+        shell: bash
+        run: grep -E -A 8 "^not ok|# fail|Smoke test failed|^- |Error|failed" verify.log | head -80 | while IFS= read -r line; do echo "::error::${line}"; done

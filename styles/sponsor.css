@@ -1,0 +1,237 @@
+/* The sponsor moment (1.38.1) ------------------------------------------------
+   Once, after ten closed days, when this copy has a sponsor page
+   (src/features/sponsor-moment.js fills [data-sponsor-moment] in index.html).
+   It celebrates first, then asks, in the planner's own language: warm
+   neutrals and ink, the Horizon mark of favicon.svg, and the opening seal's
+   motion (styles/opening.css): a dotted orbit, a mark drawn as with a pen,
+   strokes eased in, nothing that bounces.
+
+   The stage: ten day marks fill one after another (the tenth, the day just
+   closed, in the Horizon's amber); the tenth lifts into the orbit and turns
+   into the ink tile of the app's icon; there the horizon line draws, the half
+   sun rises behind it and its rays draw. About 1.9 s after the dialog opens.
+   Every animation ends on the resting state written outside the motion
+   query, so with reduced motion the final state is simply there. The words
+   and the actions never wait for it: they are usable from the first frame. */
+
+.modal--sponsor .modal__panel { width: min(100%, 33rem); }
+
+/* The stage runs to the top of the panel, under the close button (other dialogs keep a band for it). */
+.modal--sponsor .modal__scroll { margin: 6px; padding: 10px 10px 18px; }
+
+.modal--sponsor .modal__close { top: 26px; right: 26px; }
+
+.sponsor-moment {
+  --sm-amber: var(--hz-milestone);
+  --sm-tile: var(--ink);
+  --sm-tile-edge: transparent;
+  --sm-mark: #f4f0e7;
+  --sm-day: var(--ink);
+  --sm-glow: 24%;
+  --sm-shadow: rgba(25, 22, 17, .42);
+  display: grid;
+  text-align: center;
+}
+
+/* The stage ------------------------------------------------------------------ */
+
+.sm-stage {
+  /* The geometry the tenth mark travels: from its place in the row (4.5 steps right of the row's middle,
+     the orbit's half plus the gap plus its own half below) to the tile in the orbit, scaled from its size. */
+  --mark: 12px;
+  --gap: 8px;
+  --tile: 84px;
+  --orbit: 132px;
+  --below: 16px;
+  --s: .1429;
+  --dx: calc(4.5 * (var(--mark) + var(--gap)));
+  --dy: calc(var(--orbit) / 2 + var(--below) + var(--mark) / 2);
+  position: relative;
+  display: grid;
+  justify-items: center;
+  margin-bottom: 22px;
+  padding: 30px 16px 26px;
+  overflow: hidden;
+  border-radius: 11px;
+  background:
+    radial-gradient(62% 80% at 50% 40%, color-mix(in srgb, var(--sm-amber) 14%, transparent), transparent 72%),
+    radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 62%),
+    var(--soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 70%, transparent);
+  forced-color-adjust: none;
+}
+
+.sm-scene { position: relative; width: var(--orbit); height: var(--orbit); }
+
+.sm-scene > * { position: absolute; display: block; pointer-events: none; }
+
+.sm-glow { inset: -26%; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--sm-amber) var(--sm-glow), transparent), transparent 64%); opacity: .8; }
+
+.sm-orbit { inset: 0; width: 100%; height: 100%; overflow: visible; fill: none; stroke: color-mix(in srgb, var(--sm-amber) 55%, transparent); stroke-width: 1.3; stroke-dasharray: 1.5 5.5; stroke-linecap: round; }
+
+/* The app's icon: its ink tile (the corners of favicon.svg, 15 of 64) and its paper mark. */
+.sm-tile {
+  left: 50%;
+  top: 50%;
+  width: var(--tile);
+  height: var(--tile);
+  margin: calc(var(--tile) / -2) 0 0 calc(var(--tile) / -2);
+  border-radius: 23.4%;
+  background: var(--sm-tile);
+  box-shadow: 0 0 0 1px var(--sm-tile-edge), 0 16px 30px -14px var(--sm-shadow);
+}
+
+.sm-mark { display: block; width: 100%; height: 100%; overflow: visible; fill: none; stroke: var(--sm-mark); stroke-width: 3.9; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Each drawn stroke is pathLength 1: a dash as long as the stroke, then a gap, so the offset draws it. */
+.sm-mark [pathLength] { stroke-dasharray: 1 2; }
+
+.sm-days { display: flex; gap: var(--gap); margin: var(--below) 0 0; padding: 0; list-style: none; }
+
+.sm-days li { width: var(--mark); height: var(--mark); border-radius: 3.5px; background: var(--sm-day); }
+
+.sm-days li.is-today { --sm-day: var(--sm-amber); }
+
+/* The words ------------------------------------------------------------------ */
+
+.sm-title { margin: 0 auto; max-width: 22ch; color: var(--ink); font-size: clamp(1.32rem, 1.1rem + .9vw, 1.62rem); font-weight: 700; line-height: 1.12; letter-spacing: -.035em; text-wrap: balance; }
+
+.sm-title:focus { outline: none; }
+
+.sm-recap { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: min(100%, 25rem); margin: 18px auto 0; padding: 0; list-style: none; }
+
+.sm-recap[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); width: min(100%, 17rem); }
+
+.sm-recap[data-count="1"] { grid-template-columns: minmax(0, 1fr); width: min(100%, 9rem); }
+
+.sm-recap li { display: grid; align-content: start; gap: 5px; padding: 2px 8px; }
+
+.sm-recap li + li { border-left: 1px solid var(--line); }
+
+.sm-recap__value { color: var(--ink); font-size: 1.62rem; font-weight: 680; line-height: 1; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
+
+.sm-recap__label { color: var(--muted); font-size: .72rem; font-weight: 560; line-height: 1.3; }
+
+.sm-ask { width: min(100%, 26rem); margin: 20px auto 0; padding-top: 18px; border-top: 1px solid var(--line); }
+
+.sm-ask p { margin: 0; color: var(--muted); font-size: .84rem; line-height: 1.62; text-wrap: balance; }
+
+.sm-ask .sm-sign { margin-top: 6px; color: var(--ink); font-style: italic; font-weight: 560; }
+
+/* The actions: Sponsor and Share side by side, Not now under them; one column on a phone. */
+.sm-actions { display: grid; grid-template-columns: repeat(2, auto); justify-content: center; gap: 8px; margin-top: 20px; }
+
+.sm-actions .primary-button,
+.sm-actions .secondary-button { min-width: 11.75rem; min-height: 42px; padding: 8px 16px; font-size: .78rem; }
+
+.sm-actions .secondary-button { color: var(--ink); }
+
+.sm-actions svg { width: 16px; height: 16px; flex: 0 0 auto; }
+
+.sm-sponsor .icon-fill { fill: currentColor; stroke: none; }
+
+.sm-share.is-copied { border-color: color-mix(in srgb, var(--hz-habit) 45%, var(--line)); }
+
+.sm-share.is-copied svg { color: var(--hz-habit); stroke-width: 2; }
+
+.sm-later { grid-column: 1 / -1; justify-self: center; min-height: 36px; padding-inline: 14px; }
+
+/* After Sponsor on GitHub: thanks, then the moment closes by itself. */
+.sm-thanks { display: grid; gap: 10px; padding: 4px 0 6px; }
+
+.sm-thanks p { width: min(100%, 24rem); margin: 0 auto; color: var(--muted); font-size: .84rem; line-height: 1.62; text-wrap: balance; }
+
+/* The last resort for copying the link: out of sight, never read out. */
+.sm-copy-field { position: fixed; left: -9999px; top: 0; width: 1px; height: 1px; opacity: 0; }
+
+/* Dark: the tile is lifted off the night stage by a hairline, as the opening seal's disc. */
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sponsor-moment {
+    --sm-tile: #23211e;
+    --sm-tile-edge: #3d3933;
+    --sm-day: color-mix(in srgb, var(--ink) 84%, var(--soft));
+    --sm-glow: 15%;
+    --sm-shadow: rgba(0, 0, 0, .55);
+  }
+}
+
+@media screen {
+  :root[data-theme="dark"] .sponsor-moment {
+    --sm-tile: #23211e;
+    --sm-tile-edge: #3d3933;
+    --sm-day: color-mix(in srgb, var(--ink) 84%, var(--soft));
+    --sm-glow: 15%;
+    --sm-shadow: rgba(0, 0, 0, .55);
+  }
+}
+
+/* Phones: a smaller stage, comfortable at 360px; the actions full width, Not now under them. */
+@media (max-width: 560px) {
+  .modal--sponsor .modal__scroll { margin: 5px; padding: 8px 8px 14px; }
+  .modal--sponsor .modal__close { top: 21px; right: 21px; }
+  .sm-stage { --mark: 11px; --gap: 7px; --tile: 72px; --orbit: 114px; --below: 14px; --s: .1528; margin-bottom: 18px; padding: 26px 12px 20px; }
+  .sm-recap li { padding-inline: 4px; }
+  .sm-recap__value { font-size: 1.42rem; }
+  .sm-recap__label { font-size: .7rem; }
+  .sm-actions { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .sm-actions .primary-button,
+  .sm-actions .secondary-button { width: 100%; min-width: 0; min-height: 46px; }
+  .sm-later { min-height: 40px; }
+}
+
+/* The motion -------------------------------------------------------------------
+   0.16–1.0 s: the marks fill, 65 ms apart. 0.9–1.36 s: the tenth lifts into the
+   orbit and turns ink. 1.28–1.9 s: the horizon and the line below draw, the sun
+   rises, the rays draw. The orbit then turns very slowly, as the seal's does. */
+@media (prefers-reduced-motion: no-preference) {
+  .sm-days li { animation: sm-fill 300ms cubic-bezier(.22, 1, .36, 1) both; }
+  .sm-days li:nth-child(1) { animation-delay: 160ms; }
+  .sm-days li:nth-child(2) { animation-delay: 225ms; }
+  .sm-days li:nth-child(3) { animation-delay: 290ms; }
+  .sm-days li:nth-child(4) { animation-delay: 355ms; }
+  .sm-days li:nth-child(5) { animation-delay: 420ms; }
+  .sm-days li:nth-child(6) { animation-delay: 485ms; }
+  .sm-days li:nth-child(7) { animation-delay: 550ms; }
+  .sm-days li:nth-child(8) { animation-delay: 615ms; }
+  .sm-days li:nth-child(9) { animation-delay: 680ms; }
+  .sm-days li:nth-child(10) { animation-delay: 745ms; }
+  .sm-orbit { animation: sm-fade 500ms ease 80ms both, sm-turn 72s linear 600ms infinite; }
+  .sm-tile { animation: sm-resolve 460ms cubic-bezier(.55, 0, .2, 1) 900ms both; }
+  .sm-glow { animation: sm-glow 760ms cubic-bezier(.22, 1, .36, 1) 1120ms both; }
+  .sm-horizon { animation: sm-draw 240ms cubic-bezier(.6, 0, .3, 1) 1280ms both; }
+  .sm-ground { animation: sm-draw 220ms cubic-bezier(.6, 0, .3, 1) 1360ms both; }
+  .sm-sun { animation: sm-rise 440ms cubic-bezier(.22, 1, .36, 1) 1400ms both; }
+  .sm-ray { animation: sm-draw 170ms cubic-bezier(.6, 0, .3, 1) both; }
+  .sm-ray--1 { animation-delay: 1640ms; }
+  .sm-ray--2 { animation-delay: 1690ms; }
+  .sm-ray--3 { animation-delay: 1740ms; }
+  .sm-thanks { animation: sm-in 320ms cubic-bezier(.22, 1, .36, 1) both; }
+}
+
+@keyframes sm-fill {
+  from { background-color: transparent; box-shadow: inset 0 0 0 1.5px var(--line-strong); transform: scale(.8); }
+  to { background-color: var(--sm-day); box-shadow: inset 0 0 0 1.5px transparent; transform: none; }
+}
+
+@keyframes sm-resolve {
+  0% { opacity: 0; background-color: var(--sm-amber); box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; transform: translate(var(--dx), var(--dy)) scale(var(--s)); }
+  14% { opacity: 1; }
+  100% { opacity: 1; background-color: var(--sm-tile); transform: none; }
+}
+
+@keyframes sm-glow { from { opacity: 0; transform: scale(.6); } }
+
+@keyframes sm-draw { from { stroke-dashoffset: 1; opacity: 0; } 12% { opacity: 1; } to { stroke-dashoffset: 0; opacity: 1; } }
+
+/* From fully under the horizon (the clip ends at its lower edge, y 39.95): the arc's top, 26 less half its stroke, plus 17. */
+@keyframes sm-rise { from { transform: translateY(17px); } }
+
+@keyframes sm-fade { from { opacity: 0; } }
+
+@keyframes sm-turn { to { transform: rotate(360deg); } }
+
+@keyframes sm-in { from { opacity: 0; transform: translateY(6px); } }
+
+@media print {
+  .modal--sponsor { display: none; }
+}

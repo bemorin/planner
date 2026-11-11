@@ -1,0 +1,273 @@
+/* Opening seal (1.35.1) ---------------------------------------------------
+   While the planner loads (index.html marks it data-booting, styles/entrance.css
+   keeps it out of sight), its seal stands on the paper: a dark disc springs
+   in, the planner's mark (the sun on its horizon) is drawn as with a pen, a
+   warm stroke keeps turning round it inside a faint ring, a dotted orbit turns
+   slowly in a soft glow, and a greeting rises under it. The line at the
+   bottom says where the plans are kept.
+
+   It is in the page from the first paint, before any script: everything here
+   is CSS. src/features/opening-seal.js writes the greeting and that line
+   (data-greeting lets them fade in) and takes the seal away as the planner
+   shows, 3 s after its first paint (HOLD_MS) or at once on a click, a tap or
+   a key: [data-leaving], a short fade, LEAVE_MS there. Should the planner's
+   script never get that far, the seal fades by itself at 3.5 s, after that
+   hold and its fade (SEAL_FAILSAFE_MS; the planner itself is shown under it
+   at 2.4 s, styles/entrance.css); its failsafe animation also tells the
+   script how long the seal has been on screen.
+
+   With reduced motion: a still seal, held 1.2 s, and a quick fade on the way
+   out. Screen only: nothing of it is printed. */
+
+@media screen {
+  .opening {
+    /* The planner's own colours: the logo's ink tile and paper mark, and the
+       Horizon milestone amber, the warmest of its palette (styles/horizon.css). */
+    --seal-disc: var(--ink);
+    --seal-edge: transparent;
+    --seal-mark: var(--paper);
+    --seal-accent: var(--hz-milestone);
+    --seal-glow: 24%;
+    --seal-size: 176px;
+    position: fixed;
+    inset: 0;
+    /* Above the planner and the dialogs (styles/core.css, --z-modal and --z-popover): a dialog that opens on
+       launch (first-run setup, ?help) is uncovered with the planner as the seal fades. */
+    z-index: 990;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    background: var(--paper);
+    color: var(--muted);
+    animation: opening-failsafe 250ms ease 3500ms forwards;
+  }
+
+  .opening__stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  /* Each moving part is its own layer, so the turning and the springing stay
+     smooth while the planner's scripts keep the page busy. */
+  .opening__seal {
+    position: relative;
+    width: var(--seal-size);
+    height: var(--seal-size);
+    forced-color-adjust: none;
+    animation: opening-grow 1200ms cubic-bezier(.22, 1, .36, 1) both;
+  }
+
+  .opening__seal > * {
+    position: absolute;
+    display: block;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .opening__glow {
+    inset: calc(var(--seal-size) * -.34);
+    border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--seal-accent) var(--seal-glow), transparent), transparent 66%);
+    opacity: .7;
+    animation: opening-glow 1200ms cubic-bezier(.22, 1, .36, 1) both;
+  }
+
+  .opening__orbit,
+  .opening__turn {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    fill: none;
+  }
+
+  .opening__orbit {
+    stroke: color-mix(in srgb, var(--seal-accent) 45%, transparent);
+    stroke-width: 1.3;
+    stroke-dasharray: 1.5 5.5;
+    stroke-linecap: round;
+    animation: opening-orbit 48s linear infinite;
+  }
+
+  /* The faint ring and a third of it (pathLength 100) in amber: drawn in, then turning about every 1.3 s. */
+  .opening__turn {
+    transform: rotate(-90deg);
+    animation: opening-turn 1300ms cubic-bezier(.45, .05, .4, .95) 500ms infinite both;
+  }
+
+  .opening__ring {
+    stroke: color-mix(in srgb, var(--seal-accent) 22%, transparent);
+    stroke-width: 2;
+    animation: opening-fade 400ms ease 100ms both;
+  }
+
+  .opening__arc {
+    stroke: var(--seal-accent);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-dasharray: 32 100;
+    animation: opening-arc 600ms cubic-bezier(.22, 1, .36, 1) 150ms both;
+  }
+
+  /* Springs in: overshoots a little and settles (a damped spring, sampled for linear()). */
+  .opening__disc {
+    inset: 16.4%;
+    border-radius: 50%;
+    background: var(--seal-disc);
+    box-shadow: 0 0 0 1px var(--seal-edge);
+    animation: opening-disc 700ms cubic-bezier(.34, 1.56, .64, 1) 50ms both, opening-fade 160ms ease-out 50ms both;
+    animation-timing-function: linear(0, .127, .396, .678, .902, 1.044, 1.11, 1.119, 1.097, 1.063, 1.03, 1.006, .991, .986, .986, .989, .994, .997, 1), ease-out;
+  }
+
+  /* The mark, stroke by stroke as with a pen (each path is pathLength 1): the
+     horizon, the sun, its rays outward, then the line below. */
+  .opening__mark {
+    inset: 21.25%;
+    width: 57.5%;
+    height: 57.5%;
+    fill: none;
+    stroke: var(--seal-mark);
+    stroke-width: 3.3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .opening__mark path {
+    stroke-dasharray: 1 2;
+    animation: opening-draw 220ms cubic-bezier(.6, 0, .3, 1) both;
+  }
+
+  .opening__mark path:nth-child(1) { animation-delay: 90ms; animation-duration: 230ms; }
+  .opening__mark path:nth-child(2) { animation-delay: 230ms; animation-duration: 260ms; }
+  .opening__mark path:nth-child(3) { animation-delay: 410ms; animation-duration: 130ms; }
+  .opening__mark path:nth-child(4) { animation-delay: 450ms; animation-duration: 130ms; }
+  .opening__mark path:nth-child(5) { animation-delay: 490ms; animation-duration: 130ms; }
+  .opening__mark path:nth-child(6) { animation-delay: 550ms; animation-duration: 200ms; }
+
+  .opening__greeting {
+    margin: 0;
+    color: var(--muted);
+    font-size: 1rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.35;
+    text-align: center;
+    opacity: 0;
+  }
+
+  .opening__trust {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: max(28px, calc(env(safe-area-inset-bottom) + 16px));
+    margin: 0 auto;
+    max-width: 30rem;
+    color: var(--muted);
+    font-size: .8rem;
+    font-weight: 500;
+    line-height: 1.45;
+    text-align: center;
+    text-wrap: balance;
+    opacity: 0;
+  }
+
+  /* Storage blocked: nothing is kept beyond this visit, so the line says nothing (src/features/opening-seal.js). */
+  .opening__trust[hidden] { display: none; }
+
+  /* In the line, so that on two lines (a phone, with Drive) the lock stays with its first word. */
+  .opening__trust svg {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-right: 6px;
+    vertical-align: -2px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* The words arrive once the script has written them, soon enough to be read
+     before a planner that is ready at once takes the seal away. */
+  .opening[data-greeting] .opening__greeting { animation: opening-text 320ms cubic-bezier(.22, 1, .36, 1) 40ms both; }
+  .opening[data-greeting] .opening__trust { animation: opening-fade 320ms ease 100ms both; }
+
+  /* The way out (LEAVE_MS): the planner is already shown and usable
+     underneath. The seal goes first, receding a little, then the paper, so it
+     never lingers over the day as it appears. */
+  .opening[data-leaving] {
+    pointer-events: none;
+    animation: opening-leave 220ms cubic-bezier(.4, 0, .2, 1) forwards;
+  }
+
+  .opening[data-leaving] .opening__stage { animation: opening-recede 150ms cubic-bezier(.25, 0, .3, 1) forwards; }
+  .opening[data-leaving] .opening__trust { animation: opening-out 150ms cubic-bezier(.25, 0, .3, 1) forwards; }
+}
+
+/* Dark: the disc is lifted off the night paper by a hairline and keeps the
+   logo's light mark; the amber is the dark theme's own (styles/theme.css). */
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .opening {
+    --seal-disc: #23211e;
+    --seal-edge: #3d3933;
+    --seal-mark: #f4f0e7;
+    --seal-glow: 15%;
+  }
+}
+
+@media screen {
+  :root[data-theme="dark"] .opening {
+    --seal-disc: #23211e;
+    --seal-edge: #3d3933;
+    --seal-mark: #f4f0e7;
+    --seal-glow: 15%;
+  }
+}
+
+@media screen and (max-width: 560px) {
+  .opening { --seal-size: 152px; }
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+  .opening__seal,
+  .opening__glow,
+  .opening__orbit,
+  .opening__turn,
+  .opening__ring,
+  .opening__arc,
+  .opening__disc,
+  .opening__mark path,
+  .opening[data-greeting] .opening__greeting,
+  .opening[data-greeting] .opening__trust,
+  .opening[data-leaving] .opening__stage,
+  .opening[data-leaving] .opening__trust { animation: none; }
+
+  .opening__mark path { stroke-dasharray: none; }
+
+  .opening[data-greeting] .opening__greeting,
+  .opening[data-greeting] .opening__trust { opacity: 1; }
+
+  .opening[data-leaving] { animation: opening-leave 160ms ease forwards; }
+}
+
+@media print {
+  .opening { display: none; }
+}
+
+@keyframes opening-grow { from { transform: scale(.78); } }
+@keyframes opening-glow { 0% { opacity: 0; transform: scale(.6); } 55% { opacity: 1; transform: scale(1.06); } 100% { opacity: .7; transform: none; } }
+@keyframes opening-orbit { to { transform: rotate(360deg); } }
+@keyframes opening-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes opening-arc { from { stroke-dashoffset: 32; opacity: 0; } to { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes opening-turn { from { transform: rotate(-90deg); } to { transform: rotate(270deg); } }
+@keyframes opening-disc { from { transform: scale(.4); } to { transform: none; } }
+@keyframes opening-draw { from { stroke-dashoffset: 1; opacity: 0; } 12% { opacity: 1; } to { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes opening-text { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+@keyframes opening-leave { to { opacity: 0; visibility: hidden; } }
+@keyframes opening-recede { to { opacity: 0; transform: scale(.96); } }
+@keyframes opening-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes opening-failsafe { from { pointer-events: none; } to { opacity: 0; visibility: hidden; pointer-events: none; } }

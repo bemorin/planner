@@ -69,9 +69,27 @@ test('How it works: the guide reads row by row on a wide screen (1 2 / 3 4 / …
   assert.match(rules, /\.help-content \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); column-gap: 32px; align-items: start; \}/);
   assert.match(rules, /\.help-content > :is\(\.help-priority-card, \.help-faq--shortcuts\) \{ grid-column: 1 \/ -1; \}/);
   assert.doesNotMatch(rules, /\.help-content[^{]*\{[^}]*(?:grid-auto-flow: column|[{;]\s*columns:)/);
-  assert.match(rules, /\.help-start \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
-  // The other blocks in two or four columns fill row by row too: Get started then About, the shortcuts, the cards.
+  // The other blocks in four columns, or side by side, fill row by row too: the shortcuts, the cards.
   assert.doesNotMatch(guidesCss + read('styles/core.css'), /\.(?:help-start|help-cards|shortcut-grid)[^{]*\{[^}]*grid-auto-flow: column/);
+});
+
+test('How it works on a wide screen (1.39.2): Get started and About this planner are lists of rows, each across the full width', () => {
+  const rules = wide(guidesCss);
+  // One column: Get started, then About this planner under it, each as wide as the dialog.
+  assert.match(rules, /\.help-start \{ grid-template-columns: minmax\(0, 1fr\); gap: 20px; margin-bottom: 26px; \}/);
+  // Never two groups side by side again (Get started took the left half, About the full width under it).
+  assert.doesNotMatch(rules, /\.help-start \{[^}]*repeat\(2/);
+  assert.doesNotMatch(guidesCss, /\.help-start[^{]*>\s*\.help-group[^{]*\{[^}]*grid-column/);
+  // In the page, Get started comes first, then About: the order you see is the order you read and Tab in.
+  const top = /<div class="help-start">([\s\S]*?)\n {8}<\/div>\n\n {8}<div class="help-content">/.exec(html)?.[1] || '';
+  assert.deepEqual([...top.matchAll(/<h3 class="help-group__title">([^<]+)<\/h3>/g)].map(match => match[1]), ['Get started', 'About this planner']);
+  assert.doesNotMatch(top, /help-cards/, 'no small cards here: every group is a list of rows');
+  // Every row's action at the right, at one width: Take the tour as wide as What’s new and Read the notice.
+  assert.match(guidesCss, /\.help-row,\n\.help-card \{ display: grid; grid-template-columns: 32px minmax\(0, 1fr\) auto;/);
+  assert.match(guidesCss, /\.help-row > :is\(button, a\) \{ min-width: 8\.5rem; white-space: nowrap; \}/);
+  assert.match(guidesCss, /\.help-row > \.help-switch \{ justify-self: end; \}/);
+  // Small sibling cards may still sit side by side, stacked on a phone.
+  assert.match(guidesCss, /\.help-cards \{ display: grid; grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 15rem\), 1fr\)\);/);
 });
 
 test('How it works on a phone: each row’s action, and the main button of every card, take the full width', () => {

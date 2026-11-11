@@ -173,7 +173,7 @@ export function createOnboarding({ settings, persistSettings, startHour, endHour
       else s.endHour = Number(item.value);
       if (s.endHour <= s.startHour) s.endHour = Math.min(24, s.startHour + 1);
       render();
-    }, { compact: true, matchWidth: true, alignSelected: true, timeMenu: true });
+    }, { compact: true, matchWidth: true, alignSelected: true, timeMenu: true, label: isStart ? 'Show my day from' : 'Show my day until' });
   }
 
   function finish({ thenInstall = false } = {}) {

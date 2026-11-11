@@ -47,6 +47,9 @@ import { createStatsFeature } from './src/features/stats.js';
 import { createInsightsFeature, renderInsightsEntry } from './src/features/insights.js';
 import { createWeekFeature } from './src/features/week.js';
 import { searchPlannerDays, searchSnippet } from './src/features/search.js';
+import { createJournal } from './src/features/journal.js';
+import { createSaveHealth, LEDGER_KEY, measureStorage, storageBudget, storageLevel } from './src/state/storage-health.js';
+import { createStorageAlert, storageSafetyLine } from './src/features/storage-alert.js';
 import { createWeekReviewFeature } from './src/features/week-review.js';
 import { createWorkspaceFeature } from './src/features/workspace.js';
 import { createDaySwipeNavigation, navigationDirection } from './src/features/day-swipe.js';
@@ -60,9 +63,43 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   const { localStorage: browserStorage, blocked: storageBlocked } = ensureStorage(window);
   const syncLedger = createSyncLedger(browserStorage);
   let personalSyncFeature = null;
+  // The Journal keeps a light index of the saved days while it is open (src/features/journal.js): a saved day redraws it.
+  let journal = null;
+  // A write the browser refuses (its storage full) is told, in the header and in Data on this device, until one lands
+  // (src/state/storage-health.js, src/features/storage-alert.js); so is storage 80% full. Nothing throws into the planner.
+  let storageAlert = null;
+  let storageNow = null;
+  let localSavingAvailable = true;
+  let storageCheckAt = 0;
+  let storageCheckTimer = 0;
+  // Saves landing again means storage changed: it is measured once more at once, not a minute later.
+  const saveHealth = createSaveHealth({ onChange: change => { renderStorageState(); if (!change.failing) checkStorageSoon({ soon: true }); } });
+  // Saving never worked in this browser (blocked, or no room at all, as in some private windows): the startup dialog says so.
+  const savingUnavailable = () => storageBlocked || (!localSavingAvailable && !saveHealth.saved);
+  const syncInUse = () => { const sync = personalSyncFeature?.getState?.(); return !!(sync?.configured && sync.connected); };
   const store = createLocalStore(browserStorage, {
-    onMutation: mutation => { syncLedger.recordMutation(mutation); personalSyncFeature?.noteLocalChange?.(); }
+    onMutation: mutation => {
+      const marked = syncLedger.recordMutation(mutation);
+      if (marked !== null) saveHealth.note({ key: LEDGER_KEY, ok: marked });
+      personalSyncFeature?.noteLocalChange?.();
+      journal?.noteMutation(mutation);
+    },
+    onWrite: result => { saveHealth.note(result); if (result.ok && result.tracked) retryRefused(); }
   });
+  // A write landed, so there is room again: what was refused and is still held here (the day on screen, the
+  // settings) is written once more, rather than waiting for its next change.
+  let retrying = false;
+  function retryRefused() {
+    if (retrying || !saveHealth.failing) return;
+    retrying = true;
+    try {
+      const refused = saveHealth.keys();
+      if (refused.includes(storageKey())) store.writeJSON(storageKey(), state);
+      if (refused.includes('daily-planner:settings')) persistSettings();
+    } finally {
+      retrying = false;
+    }
+  }
   let date = atNoon(new Date());
   let state;
   // Keys of the paid add-on of earlier releases go, once; the settings are left as they are, and their sync base is
@@ -96,7 +133,6 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   const hideAppTooltip = () => appTooltips.hide();
   let endDayTargetDate = null;
   let endDayActions = new Map();
-  let journalPage = 0;
   let openWorkView = 'needs';
   let openWorkPendingPlans = new Map();
   let dayClosedNextDate = null;
@@ -192,6 +228,8 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   }
 
   function load() {
+    // What was on screen is replaced by what storage holds: a change it refused is gone (the notice stays).
+    saveHealth.reloaded();
     try { state = normalizeDayState(store.readJSON(storageKey()), ymd()); }
     catch (_) { state = createBlankDay(); }
     initialScheduleScrollDone = false;
@@ -203,7 +241,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       try { store.writeJSON(storageKey(), state); } catch (_) {}
-      updateStorageUsage();
+      checkStorageSoon();
     }, 70);
     renderPip();
     viewSwitch.refresh();
@@ -225,7 +263,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     renderStats();
     renderSettingsHours();
     renderPlanningWeek();
-    updateStorageUsage();
+    checkStorageSoon();
     updateEndDayButton();
     applyExpandedView();
     updatePrintSizing();
@@ -2135,40 +2173,60 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
         field?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
         field?.focus({ preventScroll: true });
       }
-      if (kind === 'memory' || kind === 'lesson') {
-        renderJournal();
-        openModal(qs('[data-journal-modal]'));
-      }
+      if (kind === 'memory' || kind === 'lesson') journal.open({ day: targetDay });
     });
   }
 
+  // Data on this device, as How it works opens: the planner's own data (UTF-8 bytes, saved days) and how full storage is.
   function updateStorageUsage() {
     const output = qs('[data-storage-usage]');
-    if (!output) return;
-    try {
-      const keys = store.keys('daily-planner:');
-      let bytes = 0;
-      let days = 0;
-      keys.forEach(key => {
-        const value = store.get(key) || '';
-        bytes += new Blob([key, value]).size;
-        if (/^daily-planner:\d{4}-\d{2}-\d{2}$/.test(key)) days += 1;
-      });
-      output.textContent = `${formatStorageBytes(bytes)} · ${days} saved ${days === 1 ? 'day' : 'days'}`;
-    } catch (_) {
-      output.textContent = 'Browser storage';
+    const usage = measureStorage(browserStorage, { bytes: true });
+    storageCheckAt = Date.now();
+    storageNow = storageLevel(usage.chars, storageBudget());
+    if (output) output.textContent = `${formatStorageBytes(usage.bytes)} · ${usage.days} saved ${usage.days === 1 ? 'day' : 'days'}`;
+    renderStorageState();
+  }
+
+  // For the header's warning only: how full storage is, at most once a minute and when the browser is idle, never per save.
+  function checkStorageSoon({ soon = false } = {}) {
+    if (soon && storageCheckTimer) { clearTimeout(storageCheckTimer); storageCheckTimer = 0; storageCheckAt = 0; }
+    if (soon) storageCheckAt = 0;
+    if (storageCheckTimer) return;
+    storageCheckTimer = setTimeout(() => {
+      const run = () => {
+        storageCheckTimer = 0;
+        storageCheckAt = Date.now();
+        storageNow = storageLevel(measureStorage(browserStorage).chars, storageBudget());
+        renderStorageState();
+      };
+      if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(run, { timeout: 5000 });
+      else run();
+    }, Math.max(0, storageCheckAt + 60000 - Date.now()));
+  }
+
+  // The real state of local saving, not the probe's alone: unavailable, a refused change or sync mark, how full.
+  function renderStorageState() {
+    const unavailable = savingUnavailable();
+    const line = storageSafetyLine({ failing: saveHealth.failing, syncMarkRefused: saveHealth.syncMarkRefused, syncInUse: syncInUse(), available: !unavailable, level: storageNow });
+    const status = qs('[data-storage-safety]');
+    if (status) { status.textContent = line.text; status.classList.toggle('is-warning', line.warning); }
+    const meter = qs('[data-storage-meter]');
+    if (meter) {
+      meter.hidden = unavailable || !storageNow;
+      if (storageNow) {
+        meter.classList.toggle('is-warning', storageNow.warn);
+        qs('[data-storage-meter-fill]', meter)?.style.setProperty('--fill', `${storageNow.percent}%`);
+        const words = qs('[data-storage-meter-text]', meter);
+        if (words) words.textContent = `About ${storageNow.percent}% full`;
+      }
     }
+    storageAlert?.render();
   }
 
   function checkLocalStorage() {
-    const status = qs('[data-storage-safety]');
     const available = !storageBlocked && store.canWrite('daily-planner:');
-    if (status) {
-      status.textContent = available
-        ? 'Local saving is available. Private windows or clearing site data may still remove it — export a backup if you want to keep your planner history.'
-        : 'Local saving is unavailable in this browser context. Export anything important before leaving this page.';
-      status.classList.toggle('is-warning', !available);
-    }
+    localSavingAvailable = available;
+    renderStorageState();
     const warning = qs('[data-storage-warning-modal]');
     if (storageBlocked && warning) [['#storage-warning-title', BLOCKED_NOTICE.title], ['[data-storage-warning-text]', BLOCKED_NOTICE.text]].forEach(([selector, words]) => { const node = qs(selector, warning); if (node) node.textContent = words; });
     // Once, over first-run setup when it is open (it comes back on Continue), with focus on Continue.
@@ -2216,7 +2274,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
       load();
       renderCategorySettings();
       renderSettingsHours();
-      updateStorageUsage();
+      checkStorageSoon();
     } catch (_) {
       alert('The browser blocked the import. Check that site storage is allowed.');
     }
@@ -2224,19 +2282,23 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
 
   const plannerBackup = () => buildPlannerBackup(store);
 
+  // What storage refused is still on screen: save what waits once more, then lay the day on screen and the settings
+  // in memory over what storage holds, so the file has everything (the storage notice's Export backup above all).
   function exportPlannerBackup() {
-    download(`daily-planner-backup-${ymd(new Date())}.json`, JSON.stringify(plannerBackup(), null, 2), 'application/json');
+    flushPlannerForSync();
+    const backup = buildPlannerBackup(store, { live: { day: ymd(), state, settings } });
+    download(`daily-planner-backup-${ymd(new Date())}.json`, JSON.stringify(backup, null, 2), 'application/json');
   }
 
   function flushPlannerForSync() {
     clearTimeout(saveTimer); clearTimeout(settingsTimer);
-    store.writeJSON(storageKey(), state); persistSettings(); updateStorageUsage();
+    store.writeJSON(storageKey(), state); persistSettings(); checkStorageSoon();
   }
 
   function reloadPlannerAfterSync() {
-    reloadSettings(); load();
+    reloadSettings(); load(); journal?.changed();
     renderCategorySettings(); renderSettingsHours(); renderPlanningWeek();
-    updateStorageUsage(); renderPip();
+    checkStorageSoon(); renderPip();
   }
 
   function resetPlannerData() {
@@ -2714,7 +2776,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     personalSyncFeature?.syncNow?.({ interactive: false, reason: 'close-day' });
     closeModal(qs('[data-end-day-modal]'));
     updateEndDayButton();
-    updateStorageUsage();
+    checkStorageSoon();
     const nextDate = ymd(date) < ymd(new Date()) ? defaultEndDayTarget() : nextPlanningDateFrom(date);
     const nextKey = ymd(nextDate);
     showDayClosedTransition(nextDate, carried.filter(item => item.targetKey === nextKey).length);
@@ -2792,7 +2854,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     try { store.writeJSON(storageKey(), state); } catch (_) {}
     closeModal(qs('[data-end-day-modal]'));
     render();
-    updateStorageUsage();
+    checkStorageSoon();
   }
 
   function updateEndDayButton() {
@@ -3082,46 +3144,6 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   // Journal and Unresolved work
   // ---------------------------------------------------------------------------
 
-  function journalDays() {
-    return savedPlannerDays().map(([day, dayState]) => ({ day, state: dayState })).filter(entry => entry.state.memory?.trim() || entry.state.lesson?.trim()).sort((a, b) => b.day.localeCompare(a.day));
-  }
-
-  function renderJournal() {
-    const wrap = qs('[data-journal-list]');
-    const older = qs('[data-journal-load-more]');
-    const newer = qs('[data-journal-newer]');
-    const pagination = qs('[data-journal-pagination]');
-    const pageLabel = qs('[data-journal-page-label]');
-    if (!wrap) return;
-    const entries = journalDays();
-    if (!entries.length) {
-      wrap.innerHTML = '<div class="empty-state">Close a day with a memory or lesson and it will appear here.</div>';
-      if (pagination) pagination.hidden = true;
-      return;
-    }
-    const pageSize = 40;
-    const maxPage = Math.max(0, Math.ceil(entries.length / pageSize) - 1);
-    journalPage = clamp(journalPage, 0, maxPage);
-    const start = journalPage * pageSize;
-    const visible = entries.slice(start, start + pageSize);
-    wrap.innerHTML = visible.map(({ day, state: dayState }) => {
-      const d = dateFromKey(day);
-      const label = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
-      const memory = dayState.memory?.trim();
-      const lesson = dayState.lesson?.trim();
-      return `<button class="journal-row" type="button" data-journal-date="${escAttr(day)}"><time>${esc(label)}</time><span class="journal-cell">${memory ? `<strong>${esc(memory)}</strong>` : '<em>—</em>'}</span><span class="journal-cell journal-cell--lesson">${lesson ? `<strong>${esc(lesson)}</strong>` : '<em>—</em>'}</span></button>`;
-    }).join('');
-    if (pagination) pagination.hidden = entries.length <= pageSize;
-    if (newer) newer.disabled = journalPage === 0;
-    if (older) older.disabled = journalPage >= maxPage;
-    if (pageLabel) pageLabel.textContent = `${start + 1}–${Math.min(entries.length, start + visible.length)} of ${entries.length}`;
-    qsa('[data-journal-date]', wrap).forEach(button => button.addEventListener('click', () => {
-      closeModal(qs('[data-journal-modal]'));
-      date = dateFromKey(button.dataset.journalDate);
-      load();
-    }));
-  }
-
   function candidateAlreadyTransferred(candidate, sourceDay) {
     const text = (candidate.kind === 'block' ? candidate.block?.title : candidate.item?.text || '').trim().toLocaleLowerCase();
     if (!text) return false;
@@ -3223,7 +3245,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     if (!candidate) return;
     addCandidateToLater(candidate);
     markCandidateTriaged(dayKey, dayState, key, ':later');
-    persistSettings(); renderOpenWork(); updateStorageUsage();
+    persistSettings(); renderOpenWork(); checkStorageSoon();
   }
 
   function dropOpenWork(button) {
@@ -3283,7 +3305,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     plans.forEach(applyOpenWorkPlan);
     openWorkPendingPlans.clear();
     renderOpenWork();
-    updateStorageUsage();
+    checkStorageSoon();
   }
 
   function openUnresolvedModal(options = {}) {
@@ -3484,7 +3506,18 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   qs('[data-export-backup]')?.addEventListener('click', exportPlannerBackup);
   qs('[data-import-menu]')?.addEventListener('click', openImportPicker);
   qs('[data-pip]').addEventListener('click', () => pipFeature.open());
-  const openJournal = () => { journalPage = 0; renderJournal(); openModal(qs('[data-journal-modal]')); trackOncePer('day', 'journal_opened'); };
+  // The header notice's Data on this device: How it works, at its card.
+  const openStorageCard = () => {
+    const help = qs('[data-help-modal]');
+    const title = qs('.storage-card h3', help);
+    if (title) title.tabIndex = -1;
+    updateStorageUsage();
+    openModal(help, title);
+    requestAnimationFrame(() => qs('.storage-card', help)?.scrollIntoView?.({ block: 'center' }));
+  };
+  storageAlert = createStorageAlert({ health: saveHealth, level: () => storageNow, syncInUse, unavailable: savingUnavailable, exportBackup: exportPlannerBackup, openData: openStorageCard, onLayout: () => requestAnimationFrame(fitHeaderDate) });
+  journal = createJournal({ store, liveDay: () => ymd(), liveState: () => state, openModal, closeModal, openDay: key => { date = dateFromKey(key); load(); } });
+  const openJournal = () => { journal.open(); trackOncePer('day', 'journal_opened'); };
   const openStats = () => { statsFeature.ensureWeek(); insightsFeature.invalidate(); renderStats(); openModal(qs('[data-stats-modal]')); trackOncePer('day', 'stats_opened'); };
   qs('[data-journal-open]').addEventListener('click', openJournal);
   qs('[data-open-work-open]').addEventListener('click', openUnresolvedModal);
@@ -3494,8 +3527,6 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   qs('[data-end-day-form]').addEventListener('submit', completeEndDay);
   qs('[data-end-day-memory]')?.addEventListener('input', e => { endDayMemoryDraft = e.target.value; });
   qs('[data-end-day-lesson]')?.addEventListener('input', e => { endDayLessonDraft = e.target.value; });
-  qs('[data-journal-load-more]')?.addEventListener('click', () => { journalPage += 1; renderJournal(); });
-  qs('[data-journal-newer]')?.addEventListener('click', () => { journalPage = Math.max(0, journalPage - 1); renderJournal(); });
   qs('[data-day-closed-done]')?.addEventListener('click', () => { persistNextDayPrep(); closeModal(qs('[data-day-closed-modal]')); setTimeout(maybePromptInstallOrSupport, 220); });
   qsa('[data-next-day-focus], [data-next-day-main], [data-next-day-other]').forEach(field => field.addEventListener('input', persistNextDayPrep));
   qs('[data-prepare-next-day]')?.addEventListener('click', () => {

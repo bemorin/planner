@@ -333,7 +333,8 @@ function printFigures(review, progress) {
     { label: 'Trophies', value: `${review.trophies.unlocked.length}<small>/${review.trophies.total}</small>`, note: latest ? `Latest: ${esc(latest.title)}` : '' },
     { label: 'Main outcomes done', value: review.outcomes.done, note: review.outcomes.done ? `On ${review.outcomes.share}% of closed days` : 'The one result that makes a day' }
   ];
-  return `<div class="rv-figures">${figures.map(figure => `<div class="rv-fig${figure.mod ? ` rv-fig--${figure.mod}` : ''}"><b>${figure.mod === 'streak' ? progressIcon('flame') : ''}${figure.value}</b><span>${esc(figure.label)}</span>${figure.note ? `<small>${figure.note}</small>` : ''}</div>`).join('')}</div>`;
+  // A streak of 100 days or more (icon, three figures and “days”) takes a wider first column, on every row alike.
+  return `<div class="rv-figures${review.bestStreak >= 100 ? ' rv-figures--wide' : ''}">${figures.map(figure => `<div class="rv-fig${figure.mod ? ` rv-fig--${figure.mod}` : ''}"><b>${figure.mod === 'streak' ? progressIcon('flame') : ''}${figure.value}</b><span>${esc(figure.label)}</span>${figure.note ? `<small>${figure.note}</small>` : ''}</div>`).join('')}</div>`;
 }
 
 function printPaint(review, progress) {

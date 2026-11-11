@@ -8,6 +8,8 @@ const PROVIDER_PREFIX = 'daily-planner-sync:';
 const CLOUD_KEY = 'daily-planner-sync:cloud';
 const CLOUD_IDS = ['google', 'dropbox'];
 const VERSION = 1;
+/** A day changed again within this time of its last mark keeps that mark (dirtyAt): typing doesn't rewrite the ledger. */
+const REMARK_MS = 30 * 1000;
 
 function safeParse(raw, fallback) {
   try { return raw ? JSON.parse(raw) : fallback; } catch { return fallback; }
@@ -57,22 +59,58 @@ export function createSyncLedger(storage = localStorage, { now = () => new Date(
 
   const write = ledger => storage.setItem(LEDGER_KEY, JSON.stringify(ledger));
 
-  const recordMutation = mutation => {
-    const recordId = plannerKeyToRecordId(mutation?.key);
-    if (!recordId) return;
-    const ledger = read();
-    const previous = ledger.records[recordId] || {};
-    ledger.records[recordId] = {
-      ...previous,
-      dirtyAt: nowIso(now),
-      deletedAt: mutation.type === 'remove' ? nowIso(now) : null
-    };
-    write(ledger);
+  // “Changed” marks the browser refused to store (its storage full), held here and written with the next one, so a
+  // change saved on this device is still sent. Until then they count as changes waiting (entry(), dirtyEntries(),
+  // so the automatic sync sees them), and a mark whose record is synced or forgotten meanwhile is dropped: a stale
+  // one (a deletion above all) is never written over what was agreed on since.
+  const unwritten = new Map();
+  // What recordMutation last wrote ({ raw, at: id → { time, removed } }), to leave a day marked moments ago alone.
+  let lastMarked = null;
+  const records = () => {
+    const stored = read().records;
+    if (!unwritten.size) return stored;
+    const merged = { ...stored };
+    for (const [id, mark] of unwritten) merged[id] = { ...(merged[id] || {}), ...mark };
+    return merged;
   };
 
-  const entry = recordId => read().records[recordId] || null;
+  /**
+   * Notes that a planner key changed here (dirty, or deleted), to be sent at the next sync. Returns true once the
+   * mark is stored, false when the browser refused it (it is kept and written with the next), null for a key
+   * Personal sync doesn't carry. Never throws.
+   */
+  const recordMutation = mutation => {
+    const recordId = plannerKeyToRecordId(mutation?.key);
+    if (!recordId) return null;
+    const removed = mutation.type === 'remove';
+    // Typing saves a day every few hundred milliseconds. A day this function marked changed less than
+    // REMARK_MS ago, in a ledger nobody has written since (the very string it wrote), is left as it is: the whole
+    // ledger is not parsed and written again at each keystroke (1.39.3).
+    const raw = storage.getItem(LEDGER_KEY);
+    const known = lastMarked && raw === lastMarked.raw && !unwritten.size ? lastMarked.at.get(recordId) : null;
+    if (known && !removed && known.removed === false && now().getTime() - known.time < REMARK_MS) return true;
+    unwritten.set(recordId, { dirtyAt: nowIso(now), deletedAt: removed ? nowIso(now) : null });
+    const ledger = safeParse(raw, null);
+    const next = !ledger || ledger.version !== VERSION || typeof ledger.records !== 'object' ? { version: VERSION, records: {} } : ledger;
+    for (const [id, mark] of unwritten) next.records[id] = { ...(next.records[id] || {}), ...mark };
+    const text = JSON.stringify(next);
+    try {
+      storage.setItem(LEDGER_KEY, text);
+    } catch (_) {
+      lastMarked = null;
+      return false;
+    }
+    const time = now().getTime();
+    const at = lastMarked && raw === lastMarked.raw ? lastMarked.at : new Map();
+    for (const [id, mark] of unwritten) at.set(id, { time, removed: !!mark.deletedAt });
+    lastMarked = { raw: text, at };
+    unwritten.clear();
+    return true;
+  };
 
-  const dirtyEntries = () => Object.entries(read().records).filter(([, record]) => !!record?.dirtyAt);
+  const entry = recordId => records()[recordId] || null;
+
+  const dirtyEntries = () => Object.entries(records()).filter(([, record]) => !!record?.dirtyAt);
 
   const hasDirty = () => dirtyEntries().length > 0;
 
@@ -83,6 +121,7 @@ export function createSyncLedger(storage = localStorage, { now = () => new Date(
   };
 
   const markSynced = (recordId, { hash, deletedAt = null } = {}) => {
+    unwritten.delete(recordId);
     const ledger = read();
     ledger.records[recordId] = {
       ...(ledger.records[recordId] || {}),
@@ -107,6 +146,7 @@ export function createSyncLedger(storage = localStorage, { now = () => new Date(
   };
 
   const forgetRecord = recordId => {
+    unwritten.delete(recordId);
     const ledger = read();
     delete ledger.records[recordId];
     write(ledger);
@@ -165,6 +205,7 @@ export function createSyncLedger(storage = localStorage, { now = () => new Date(
   };
 
   const reset = () => {
+    unwritten.clear();
     storage.removeItem(LEDGER_KEY);
     CLOUD_IDS.forEach(id => storage.removeItem(providerKey(id)));
     storage.removeItem(CLOUD_KEY);

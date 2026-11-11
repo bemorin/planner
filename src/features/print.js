@@ -1,5 +1,57 @@
 import { buildYearPrintModel, renderYearPrint } from './year-print.js';
 
+/**
+ * The Day sheet's plan column (outcomes, tasks, notes) always ends on its page: laid out off-screen at Letter's
+ * printable width (the narrower page; styles/print.css `.print-sheet--day.is-measuring`), it steps down while it
+ * runs past its height: a smaller notes box, then tighter rows (a long one clamped to three lines), then the blank
+ * task rows go (they are room to write, not tasks), then the tasks in two columns, then the last tasks give way to
+ * “+n more tasks”. A note longer than its box ends with an ellipsis inside it; and the column clips whatever might
+ * still be left, never the page (1.39.3).
+ */
+export function fitDayPlan(sheet) {
+  const column = sheet?.querySelector?.('.print-plan-column');
+  if (!column) return;
+  const doc = sheet.ownerDocument || document;
+  const styleOf = node => (doc.defaultView || globalThis).getComputedStyle(node);
+  const hidden = !sheet.offsetHeight;
+  if (hidden) sheet.classList.add('is-measuring');
+  const over = () => column.scrollHeight > column.clientHeight + 1;
+  const tasks = column.querySelector('.print-tasks');
+  const notes = column.querySelector('.print-notes p');
+  const noteText = notes?.querySelector('.print-notes__text');
+  try {
+    if (over()) column.classList.add('is-tight');
+    if (over()) column.classList.add('is-compact');
+    if (over() && tasks) {
+      const blanks = [...tasks.querySelectorAll('.print-check-row.is-blank')];
+      while (over() && blanks.length) blanks.pop().remove();
+    }
+    if (over() && tasks) tasks.classList.add('is-two');
+    if (over() && tasks) {
+      const rows = [...tasks.querySelectorAll('.print-check-row:not(.is-blank)')];
+      const more = doc.createElement('div');
+      more.className = 'print-more';
+      tasks.append(more);
+      let left = 0;
+      while (over() && rows.length > 1) {
+        rows.pop().remove();
+        left += 1;
+        more.textContent = `+${left} more ${left === 1 ? 'task' : 'tasks'}`;
+      }
+      if (!left) more.remove();
+    }
+    if (noteText && notes.scrollHeight > notes.clientHeight + 1) {
+      const box = styleOf(notes);
+      const line = parseFloat(styleOf(noteText).lineHeight) || parseFloat(box.fontSize) * 1.3;
+      const room = notes.clientHeight - parseFloat(box.paddingTop) - parseFloat(box.paddingBottom);
+      noteText.classList.add('is-clamped');
+      noteText.style.setProperty('-webkit-line-clamp', String(Math.max(1, Math.floor(room / line))));
+    }
+  } finally {
+    if (hidden) sheet.classList.remove('is-measuring');
+  }
+}
+
 export function createPrintFeature(ctx) {
   let printTitleBefore = document.title;
 
@@ -45,7 +97,7 @@ export function createPrintFeature(ctx) {
   function printCheckRow(item = null) {
     const text = item?.text?.trim?.() || '';
     const done = !!item?.done;
-    return `<div class="print-check-row${done ? ' is-done' : ''}"><span class="print-checkbox" aria-hidden="true"></span><p>${text ? ctx.esc(text) : '&nbsp;'}</p></div>`;
+    return `<div class="print-check-row${done ? ' is-done' : ''}${text ? '' : ' is-blank'}"><span class="print-checkbox" aria-hidden="true"></span><p>${text ? ctx.esc(text) : '&nbsp;'}</p></div>`;
   }
 
   function buildPrintSheet() {
@@ -90,9 +142,10 @@ export function createPrintFeature(ctx) {
       const tasks = (state.tasks || []).filter(item => item.text?.trim());
       const otherRows = [priorities[1] || null, priorities[2] || null].map(printCheckRow).join('');
       const taskRows = Array.from({ length: Math.max(3, tasks.length) }, (_, index) => printCheckRow(tasks[index] || null)).join('');
-      sheet.innerHTML = `<header class="print-sheet-head"><div><span>${ctx.esc(day.toLocaleDateString(undefined, { weekday: 'long' }))}</span><h1>${ctx.esc(day.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }))}</h1></div></header><div class="print-daily-layout"><aside class="print-plan-column"><section><h2>Keep in mind</h2><p>${ctx.esc(state.focus || '')}</p></section><section><h2>Most important outcome</h2>${printCheckRow(priorities[0] || null)}</section><section><h2>Other important outcomes</h2>${otherRows}</section><section><h2>Tasks</h2>${taskRows}</section><section class="print-notes"><h2>Notes</h2><p>${ctx.esc(state.notes || '')}</p></section></aside><section class="print-schedule-column"><h2>Schedule</h2>${printScheduleMarkup(state)}</section></div><a class="print-sheet-domain" href="https://planner.bemorin.com">planner.bemorin.com</a>`;
+      sheet.innerHTML = `<header class="print-sheet-head"><div><span>${ctx.esc(day.toLocaleDateString(undefined, { weekday: 'long' }))}</span><h1>${ctx.esc(day.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }))}</h1></div></header><div class="print-daily-layout"><aside class="print-plan-column"><section><h2>Keep in mind</h2><p>${ctx.esc(state.focus || '')}</p></section><section><h2>Most important outcome</h2>${printCheckRow(priorities[0] || null)}</section><section><h2>Other important outcomes</h2>${otherRows}</section><section class="print-tasks"><h2>Tasks</h2>${taskRows}</section><section class="print-notes"><h2>Notes</h2><p><span class="print-notes__text">${ctx.esc(state.notes || '')}</span></p></section></aside><section class="print-schedule-column"><h2>Schedule</h2>${printScheduleMarkup(state)}</section></div><a class="print-sheet-domain" href="https://planner.bemorin.com">planner.bemorin.com</a>`;
     }
     document.body.append(sheet);
+    if (rangeView !== 'week') fitDayPlan(sheet);
     return sheet;
   }
 

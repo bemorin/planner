@@ -11,7 +11,7 @@ import { createRecoveryStore } from '../sync/recovery-store.js';
 import { createSyncEngine } from '../sync/engine.js';
 import { createSyncScheduler } from '../sync/scheduler.js';
 import { whenPlannerShown } from './app-entrance.js';
-import { DROPBOX_BLOCKED_LINE, MARKS, RECONNECT_ICON, cloudName, conflictSummary, panelMarkup, passphraseProblem, relativeSyncLabel, returnNote, sealLineMarkup, storageSyncLine, strengthMarkup, syncLead, syncView } from './personal-sync-view.js';
+import { DROPBOX_BLOCKED_LINE, MARKS, RECONNECT_ICON, cloudName, conflictSummary, panelMarkup, passphraseProblem, relativeSyncLabel, refusedNote, returnNote, sealLineMarkup, storageSyncLine, strengthMarkup, syncLead, syncView } from './personal-sync-view.js';
 
 /**
  * Settings → Personal sync: the person's own Google Drive or Dropbox (1.38),
@@ -176,6 +176,8 @@ export function createPersonalSyncFeature({
   let connectingTo = '';
   let working = false;
   let conflictCount = 0;
+  // Changes from the copy this browser refused to store at the last sync (storage full): fetched again next time.
+  let refusedCount = 0;
   let lastErrorMessage = '';
   let errorNote = '';
   let infoNote = '';
@@ -287,6 +289,7 @@ export function createPersonalSyncFeature({
       lastSyncedAt: saved.lastSyncedAt || '',
       lastError: saved.lastError || '',
       conflicts: conflictCount,
+      refused: refusedCount,
       need: need?.reason || '',
       moved: movedAway() ? 'dropbox' : '',
       error: errorNote
@@ -526,6 +529,10 @@ export function createPersonalSyncFeature({
 
       const result = await runEngineSync(conflictResolution);
       copyFormat = transport().format;
+      if (result.status === 'ok') {
+        refusedCount = result.refused?.length || 0;
+        if (refusedCount) infoNote = refusedNote(refusedCount);
+      }
       need = null;
       // The copy in Drive says where the planner went (Switch to Dropbox on another device), or nothing.
       if (id === 'google') ledger.saveProvider({ movedTo: result.movedTo || '' }, id);

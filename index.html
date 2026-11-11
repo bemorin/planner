@@ -98,6 +98,12 @@
           <span class="sync-alert__text" data-sync-alert-text></span>
         </button>
         <span class="sr-only" role="status" data-sync-alert-live></span>
+        <!-- Local storage's header notice (1.39.3, src/features/storage-alert.js): a change the browser couldn't save, or storage 80% full. -->
+        <button class="sync-alert storage-alert" type="button" data-storage-alert hidden aria-haspopup="dialog" aria-expanded="false">
+          <span class="sync-alert__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="2.8"/><path d="M5 6v12c0 1.55 3.13 2.8 7 2.8s7-1.25 7-2.8V6"/><path d="M5 12c0 1.55 3.13 2.8 7 2.8s7-1.25 7-2.8"/></svg><i class="sync-alert__dot"></i></span>
+          <span class="sync-alert__text" data-storage-alert-text></span>
+        </button>
+        <span class="sr-only" role="status" data-storage-alert-live></span>
         <button class="icon-button" type="button" data-search-open aria-label="Search planner" data-tooltip="Search" data-tooltip-key="F">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m15.5 15.5 4.1 4.1"/></svg>
         </button>
@@ -907,7 +913,7 @@
     </section>
   </div>
 
-  <div class="modal" data-journal-modal hidden>
+  <div class="modal modal--journal" data-journal-modal hidden>
     <button class="modal__backdrop" type="button" data-modal-close aria-label="Close journal"></button>
     <section class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="journal-title">
       <button class="modal__close icon-button" type="button" data-modal-close aria-label="Close">
@@ -1206,7 +1212,7 @@
           </section>
           <section class="storage-card help-priority-card">
             <div class="storage-card__copy"><h3>Data on this device</h3><p>The planner stores its settings and daily plans locally in the browser. Clearing site data can remove them.</p><p data-storage-sync-line hidden></p><p class="storage-safety" data-storage-safety>Checking local saving…</p></div>
-            <div class="storage-card__side"><strong data-storage-usage>Calculating…</strong><button class="secondary-button storage-import-button" type="button" data-import-open>Import backup</button><button class="danger-link-button" type="button" data-reset-open>Reset local data</button></div>
+            <div class="storage-card__side"><strong data-storage-usage>Calculating…</strong><div class="storage-meter" data-storage-meter><span class="storage-meter__track" aria-hidden="true"><i data-storage-meter-fill></i></span><small data-storage-meter-text>Checking storage…</small></div><button class="secondary-button storage-import-button" type="button" data-import-open>Import backup</button><button class="danger-link-button" type="button" data-reset-open>Reset local data</button></div>
           </section>
 
           <details class="help-faq help-faq--shortcuts" open>

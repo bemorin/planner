@@ -2,6 +2,17 @@
 
 All notable changes to Daily Planner are recorded here. Versions follow `major.minor.patch`; a feature release bumps the minor number.
 
+## 1.39.3 — 2026-11-11
+
+A roomier Journal that stays fast however long your history, prints that keep to their page, and a clear notice when this browser runs out of space for your planner.
+
+- **The Journal is wider on a computer.** It has a width of its own, between the other dialogs and Insights: the date has a little more room, Best memory and Lesson learned read as sentences, and a long entry shows up to three lines, in the same quiet rows under column labels that stay in place. On phones, the column labels now read “Best memory · Lesson learned” over each day’s memory and lesson.
+- **The Journal opens at once, however many days you have closed,** and Newer and Older turn the page at once. It keeps up when your plans change while it is open (a sync, an import, an edit), and keyboard focus stays where it was. A search result for a memory or a lesson now opens the Journal on the page that holds that day.
+- **A busy day prints on its page.** With many tasks or long lines, the day sheet now steps down instead of running off the bottom: a smaller notes box, tighter rows, then the tasks in two columns, and “+3 more tasks” as a last resort. A long note ends with an ellipsis inside its box.
+- **Year in review:** a best streak of 100 days or more no longer runs into its label on the printed page.
+- **When this browser runs out of space, the planner says so.** A change the browser refuses to save is no longer lost in silence: a notice in the header says “This browser is out of space for your planner. Your latest change wasn’t saved.”, and it goes by itself once a change is saved again. Its Export backup includes the change that wasn’t saved. How it works → Data on this device shows about how full the planner’s storage is, and from 80% it suggests exporting a backup (in the header too, once a day).
+- **Personal sync:** when this browser has no room for changes from your other devices, sync now says so and fetches them again at the next sync, instead of sending this device’s older version over them.
+
 ## 1.39.2 — 2026-11-11
 
 Two fixes.

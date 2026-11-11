@@ -15,27 +15,49 @@
 .settings-group__head h3 { margin: 0; font-size: .8rem; }
 .settings-group__head p { margin: .26rem 0 0; color: var(--muted); font-size: .7rem; line-height: 1.5; }
 
-.category-settings {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: .55rem;
-}
+/* Categories & projects (1.39.1): one list. A row is the colour, the whole name (edited in place) and two quiet
+   actions that come forward with the row; the last row adds a category. Archived ones fold away below. */
+.category-settings { min-width: 0; display: grid; gap: 4px; }
+.category-list { min-width: 0; display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
 
 .category-setting {
   min-width: 0;
-  min-height: 54px;
+  min-height: 36px;
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 30px 30px;
+  grid-template-columns: 30px minmax(0, 1fr) 28px 28px;
   align-items: center;
-  gap: 7px;
-  padding: .45rem .5rem;
+  gap: 3px;
+  padding: 2px 3px;
   border-radius: 10px;
-  background: color-mix(in srgb, var(--surface-strong) 74%, transparent);
+  transition: background-color 120ms ease;
 }
-.category-setting .category-name { width: 100%; min-height: 35px; background: transparent; }
-.category-setting .category-archive { justify-self: center; opacity: .55; }
-.category-setting .category-archive:hover { opacity: 1; background: var(--soft); }
-.category-setting .category-remove { justify-self: end; }
+.category-setting:hover,
+.category-setting:focus-within { background: color-mix(in srgb, var(--soft) 60%, transparent); }
+
+.category-setting .category-name {
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 8px;
+  border-color: transparent;
+  border-radius: 8px;
+  background: transparent;
+  font-size: .8rem;
+}
+.category-setting:hover .category-name { border-color: var(--line); }
+.category-setting .category-name:focus { border-color: var(--line-strong); background: var(--surface-strong); }
+
+.category-setting .task-action { width: 28px; height: 28px; min-width: 28px; min-height: 28px; color: var(--faint-mark); }
+.category-setting:hover .task-action,
+.category-setting:focus-within .task-action { color: var(--muted); }
+.category-setting .task-action:hover,
+.category-setting .task-action:focus-visible { color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.category-setting .task-action:focus-visible { box-shadow: inset 0 0 0 1px var(--line-strong); }
+/* A finger gets taller rows and larger actions. */
+@media (pointer: coarse) {
+  .category-setting { min-height: 44px; grid-template-columns: 34px minmax(0, 1fr) 34px 34px; }
+  .category-setting .task-action { width: 34px; height: 34px; min-width: 34px; min-height: 34px; }
+  .category-setting--add { grid-template-columns: 34px minmax(0, 1fr); }
+}
 
 .color-trigger {
   min-height: 38px;
@@ -78,44 +100,52 @@
   padding: 0;
 }
 .color-trigger--compact.is-swatch-only strong { display: none; }
+.category-setting .color-trigger--compact.is-swatch-only {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  border-color: transparent;
+  border-radius: 999px;
+  background: transparent;
+}
+.category-setting .color-trigger--compact.is-swatch-only > span { width: 16px; height: 16px; }
+.category-setting .color-trigger--compact.is-swatch-only:hover,
+.category-setting .color-trigger--compact.is-swatch-only:focus-visible { border-color: var(--line-strong); background: var(--surface-strong); }
 
-.category-setting--add {
-  min-width: 0;
-  min-height: 54px;
+/* The add row: a dashed ring where a colour would be, and an empty name. */
+.category-add-mark { width: 30px; height: 30px; display: grid; place-items: center; color: var(--faint-mark); cursor: text; }
+.category-add-mark svg { width: 16px; height: 16px; padding: 2px; border: 1px dashed currentColor; border-radius: 999px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.category-setting--add { grid-template-columns: 30px minmax(0, 1fr); }
+.category-setting--add .category-name { font-weight: 560; }
+.category-setting--add .category-name::placeholder { color: var(--muted); font-weight: 520; opacity: 1; }
+.category-setting--add:focus-within .category-add-mark { color: var(--muted); }
+
+/* Archived: a disclosure under the list, with Restore and Delete; the names are never cut. */
+.archived-categories { min-width: 0; margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--line); }
+.archived-categories > summary {
+  width: fit-content;
+  min-height: 30px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface-strong) 74%, transparent);
+  gap: 6px;
+  padding: 4px 9px 4px 7px;
+  border-radius: 8px;
   color: var(--muted);
-  font: inherit;
-  font-size: .78rem;
+  font-size: .7rem;
+  font-weight: 650;
   cursor: pointer;
+  list-style: none;
 }
-.category-setting--add:hover { background: var(--soft); color: var(--ink); }
-.category-setting--add svg {   fill: none; stroke: currentColor; stroke-width: 1.65; }
-
-.archived-categories-head {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 9px;
-  padding: 11px 3px 3px;
-  border-top: 1px solid var(--line);
-}
-.archived-categories-head > div { display: grid; gap: 2px; }
-.archived-categories-head span { color: var(--muted); font-size: .68rem; font-weight: 680; }
-.archived-categories-head small { color: var(--faint); font-size: .59rem; }
-.archived-categories-head strong { color: var(--faint); font-size: .62rem; }
-.category-setting--archived { grid-template-columns: 34px minmax(0, 1fr) 34px 34px; opacity: .72; }
+.archived-categories > summary::-webkit-details-marker { display: none; }
+.archived-categories > summary svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform 160ms ease; }
+.archived-categories[open] > summary svg { transform: rotate(90deg); }
+.archived-categories > summary:hover,
+.archived-categories > summary:focus-visible { outline: 0; color: var(--ink); background: var(--soft); }
+.archived-categories__note { margin: 2px 9px 5px; color: var(--faint); font-size: .62rem; line-height: 1.45; }
 .archived-category-swatch {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   place-self: center;
   border-radius: 50%;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 11%, transparent);
@@ -123,11 +153,11 @@
 .archived-category-name {
   min-width: 0;
   align-self: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding: 5px 9px;
+  overflow-wrap: anywhere;
   color: var(--muted);
-  font-size: .74rem;
+  font-size: .76rem;
+  line-height: 1.35;
 }
 
 /* Three distinct color palettes. */
@@ -160,35 +190,45 @@
 /* Settings closes with the modal X; no redundant Done footer. */
 .settings-actions { display: none; }
 
-/* The two columns of sections (index.html): one flow, as before, until the screen is wide; the line
-   between Displayed hours and Planning week stays, though they are no longer siblings. */
+/* The sections (index.html) sit in three wrappers, read one after the other: Appearance and the time the planner
+   shows, Categories & projects, then Your devices with Personal sync; Privacy comes last, on its own. One flow, as
+   before, until the screen is wide: the line between two sections stays where a wrapper ends. */
 .settings-column { display: contents; }
-.settings-column + .settings-column > .settings-group:first-child {
+.settings-column + .settings-column > .settings-group:first-child,
+.settings-column + .settings-group--privacy {
   margin-top: 1.15rem;
   padding-top: 1rem;
   border-top: 1px solid var(--line);
 }
 
-/* Settings on a wide screen (1.38): the dialog takes the room, up to 1088px (1360px on a 1920px screen
-   with the app fitted to it) and the height the screen has; its sections sit in two columns read one
-   after the other: how the planner looks and where it lives, then how you plan. Two wrappers, so a
-   category added or a sync connected never moves a section from one column to the other. Below 1000px,
-   nothing changes. */
+/* Settings on a wide screen (1.39.1): the dialog takes the width it needs (up to 1200px, 1500px on a 1920px screen
+   with the app fitted to it) and the height the screen has, and shows its content whole when it can. Below
+   1000px, nothing changes. */
 @media screen and (min-width: 1000px) {
-  [data-settings-modal] .modal__panel { width: min(100%, clamp(640px, calc(640px + (100vw - 1000px) * 1.6), 1088px)); display: flex; flex-direction: column; }
+  [data-settings-modal] .modal__panel { width: min(100%, clamp(640px, calc(640px + (100vw - 1000px) * 2), 1200px)); max-height: calc(100dvh - 2rem); display: flex; flex-direction: column; }
   [data-settings-modal] .modal__scroll { flex: 1 1 auto; min-height: 0; max-height: none; }
 }
 
+/* From a small laptop, the sections in columns. Each wrapper keeps its sections whatever they hold (a category
+   added, sync connected), and each column is as tall as its own content: when one runs long, the whole dialog
+   scrolls, never one column. Privacy closes the dialog in one row across the width. */
 @media screen and (min-width: 1100px) {
-  [data-settings-modal] .modal__scroll { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; column-gap: 40px; padding-inline: 1.4rem 1.3rem; }
+  [data-settings-modal] .modal__scroll { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; align-items: start; column-gap: 36px; padding-inline: 1.4rem 1.3rem; }
   [data-settings-modal] .modal__header { grid-column: 1 / -1; margin-bottom: 1.05rem; }
   .settings-column { display: block; min-width: 0; }
   .settings-column + .settings-column > .settings-group:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+  /* Two columns: the time and the categories side by side, your devices across the width under them. */
+  .settings-column--devices { grid-column: 1 / -1; margin-top: 1.15rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  .settings-group--privacy { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 320px); align-items: center; column-gap: 28px; }
+  .settings-group--privacy .settings-group__head { margin-bottom: 0; }
+  .settings-group--privacy .device-action { min-height: 54px; padding-block: 7px; }
 }
 
-/* Until a column is wide enough for two categories side by side (about 480px), one per row: names stay readable. */
-@media screen and (min-width: 1100px) and (max-width: 1259.98px) {
-  [data-settings-modal] .category-settings { grid-template-columns: minmax(0, 1fr); }
+/* Three columns once each has room for its content (about 330px): the devices take the widest, for the two clouds
+   side by side. */
+@media screen and (min-width: 1220px) {
+  [data-settings-modal] .modal__scroll { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.16fr); column-gap: 34px; }
+  .settings-column--devices { grid-column: auto; margin-top: 0; padding-top: 0; border-top: 0; }
 }
 
 @media (max-width: 790px) {
@@ -196,7 +236,6 @@
 }
 
 @media (max-width: 680px) {
-  .category-settings { grid-template-columns: 1fr; }
   .settings-group__head { flex-direction: column; gap: .5rem; }
   .color-popover--palettes .color-popover__grid { grid-template-columns: repeat(6, 1fr); }
 }
@@ -286,7 +325,6 @@
 
 /* Personal sync: its card, choice and states are in styles/sync.css. */
 
-/* Manage categories: the Settings list, one column, stacked over the block editor. */
-.modal--categories .category-settings { grid-template-columns: minmax(0, 1fr); }
+/* Manage categories: the Settings list, stacked over the block editor. */
 .modal--categories .modal__panel:focus { outline: none; }
 .modal--categories .modal__actions { margin-top: 1rem; }

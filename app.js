@@ -18,7 +18,7 @@ import { createSponsorMoment } from './src/features/sponsor-moment.js';
 import { createSyncGuide } from './src/features/sync-guide.js';
 import { createFeedbackFeature, featureVersion } from './src/features/feedback.js';
 import { createPrivacyNotice } from './src/features/privacy.js';
-import { createCategoryManager } from './src/features/category-manager.js';
+import { createCategoryManager, nextCategoryColor } from './src/features/category-manager.js';
 import { buildProgressModel, newlyUnlocked } from './src/features/progress-model.js';
 import { markTrophiesSeen, readSeenTrophies, renderDayClosedProgress } from './src/features/progress-view.js';
 import { markQuarterNudged, quarterNudgeFor, renderQuarterNudge } from './src/features/quarter-review.js';
@@ -1407,19 +1407,18 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   const categoryManager = createCategoryManager({
     getSettings: () => settings, getState: () => state, palette, today: () => ymd(new Date()),
     persistSettings, saveSettings: () => saveSettings(), saveSettingsDebounced, save, refreshBlockCategoryTrigger, renderStats,
-    openColorPopover, openAddCategory: context => openAddCategoryModal({ context }), openModal, closeModal
+    openColorPopover, newId: () => uid('category'), openModal, closeModal
   });
   const renderCategorySettings = () => categoryManager.render();
 
+  // From the block editor's category menu (Settings and Manage categories add theirs in their own list).
   function openAddCategoryModal({ context = 'settings' } = {}) {
     categoryAddContext = context;
-    // From the Manage dialog it stacks (block editor → Manage → Add) and unwinds one level at a time.
-    const stack = context === 'manage';
-    categoryReturnModal = !stack && activeModal && !activeModal.matches('[data-category-modal]') ? activeModal : null;
+    categoryReturnModal = activeModal && !activeModal.matches('[data-category-modal]') ? activeModal : null;
     categoryDraftColor = '';
     qs('[data-new-category-name]').value = '';
     renderNewCategoryColorTrigger();
-    openModal(qs('[data-category-modal]'), qs('[data-new-category-name]'), { stack });
+    openModal(qs('[data-category-modal]'), qs('[data-new-category-name]'));
   }
 
   function renderNewCategoryColorTrigger() {
@@ -1435,20 +1434,14 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     if (settings.categories.filter(c => !c.archived).length >= palette.length) return;
     const name = qs('[data-new-category-name]').value.trim();
     if (!name) return;
-    const color = categoryDraftColor || nextPaletteColor();
+    const color = categoryDraftColor || nextCategoryColor(settings.categories, palette);
     const category = { id: uid('category'), name, color, archived: false, archivedAt: '' };
     settings.categories.push(category);
     if (categoryAddContext === 'block') blockTimeDraft.categoryId = category.id;
-    if (categoryAddContext === 'manage') categoryManager.focusCategory(category.id);
     closeModal(qs('[data-category-modal]'));
     saveSettings();
     if (categoryAddContext === 'block') refreshBlockCategoryTrigger();
     categoryAddContext = 'settings';
-  }
-
-  function nextPaletteColor() {
-    const used = new Set(settings.categories.filter(c => !c.archived).map(c => c.color));
-    return palette.find(p => !used.has(p.value))?.value || palette[settings.categories.length % palette.length].value;
   }
 
   function renderSettingsHours() { renderVisibleHourInputs({ qs, time, startHour: startHour(), endHour: endHour() }); }

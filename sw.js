@@ -1,4 +1,4 @@
-const CACHE = 'daily-planner-1.39.0';
+const CACHE = 'daily-planner-1.39.1';
 const CORE = [
   './', './index.html', './styles.css', './runtime-config.js', './app.js', './manifest.webmanifest',
   './favicon.svg', './favicon.ico', './apple-touch-icon.png', './pwa-192.png', './pwa-512.png',

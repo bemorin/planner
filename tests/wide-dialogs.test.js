@@ -84,20 +84,40 @@ test('How it works on a phone: each row’s action, and the main button of every
   assert.match(html, /<li class="help-row help-tour">[\s\S]*?<button class="primary-button" type="button" data-tour-open>Take the tour<\/button>\s*<\/li>/);
 });
 
-test('Settings: two columns of sections in the dialog’s order, the line between them kept in one flow', () => {
+test('Settings (1.39.1): three columns in the order they read, the same order in one flow on a phone', () => {
   const scroll = /<div class="modal" data-settings-modal hidden>[\s\S]*?<div class="modal__scroll">([\s\S]*?)\n {6}<\/div>\n {4}<\/section>/.exec(html)?.[1] || '';
-  const columns = scroll.split('<div class="settings-column">').slice(1).map(part => [...part.matchAll(/<h3>([^<]+)<\/h3>/g)].map(match => match[1]));
-  assert.equal(columns.length, 2);
-  assert.deepEqual(columns[0], ['Appearance', 'Your devices', 'Displayed hours'], '1.39: no Plus card');
-  assert.deepEqual(columns[1].slice(0, 2), ['Planning week', 'Categories & projects']);
-  assert.equal(columns[1].at(-1), 'Privacy');
+  // DOM order = visual order = Tab order: column by column, top to bottom, left then right; Privacy after the columns.
+  const parts = scroll.split(/<div class="settings-column settings-column--(\w+)">/).slice(1);
+  const columns = [];
+  for (let i = 0; i < parts.length; i += 2) columns.push([parts[i], [...parts[i + 1].matchAll(/<h3>([^<]+)<\/h3>/g)].map(match => match[1])]);
+  assert.deepEqual(columns.map(([name]) => name), ['schedule', 'categories', 'devices']);
+  assert.deepEqual(columns[0][1], ['Appearance', 'Displayed hours', 'Planning week']);
+  assert.deepEqual(columns[1][1], ['Categories & projects']);
+  assert.deepEqual(columns[2][1].slice(0, 2), ['Your devices', 'Personal sync'], 'Personal sync directly under Your devices');
+  assert.equal(columns[2][1].at(-1), 'Privacy', 'Privacy comes after the last column');
+  assert.match(scroll, /<\/section>\n {8}<\/div>\n\n {8}<section class="settings-group settings-group--privacy" data-privacy-entry hidden>/, 'Privacy is outside the columns');
+  assert.ok(scroll.indexOf('Week starts on') > scroll.indexOf('<h3>Planning week</h3>') && scroll.indexOf('Week starts on') < scroll.indexOf('<h3>Categories & projects</h3>'));
+  // The header says what the dialog is.
+  assert.match(scroll, /<h2 id="settings-title">Settings<\/h2>\n {10}<p>Changes are saved as you make them\.<\/p>/);
+  assert.doesNotMatch(scroll, /Schedule & categories|Planner settings/);
+  assert.match(scroll, /<p>Name what your time goes to\. Colours help you scan the day; archive a category to keep its history without offering it for new plans\.<\/p>/);
+  // Personal sync keeps the data attributes its code finds it by.
+  assert.match(scroll, /<section class="settings-group" data-personal-sync hidden>/);
+
+  // One flow until the screen is wide; the line between sections stays where a wrapper ends.
   assert.match(settingsCss, /^\.settings-column \{ display: contents; \}/m);
-  assert.match(settingsCss, /^\.settings-column \+ \.settings-column > \.settings-group:first-child \{\n {2}margin-top: 1\.15rem;\n {2}padding-top: 1rem;\n {2}border-top: 1px solid var\(--line\);/m);
+  assert.match(settingsCss, /^\.settings-column \+ \.settings-column > \.settings-group:first-child,\n\.settings-column \+ \.settings-group--privacy \{\n {2}margin-top: 1\.15rem;\n {2}padding-top: 1rem;\n {2}border-top: 1px solid var\(--line\);/m);
   const rules = wide(settingsCss);
-  assert.match(rules, /\[data-settings-modal\] \.modal__scroll \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+  assert.match(rules, /\[data-settings-modal\] \.modal__panel \{ width: min\(100%, clamp\(640px, calc\(640px \+ \(100vw - 1000px\) \* 2\), 1200px\)\); max-height: calc\(100dvh - 2rem\);/);
+  assert.match(rules, /\[data-settings-modal\] \.modal__scroll \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); align-content: start; align-items: start;/, 'each column as tall as its content');
   assert.match(rules, /\.settings-column \{ display: block;/);
-  // Two categories side by side only once a column has room for both names.
-  assert.match(settingsCss, /@media screen and \(min-width: 1100px\) and \(max-width: 1259\.98px\) \{\n {2}\[data-settings-modal\] \.category-settings \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+  assert.match(rules, /\.settings-group--privacy \{ grid-column: 1 \/ -1; display: grid;/);
+  // Three columns from 1220px; between 1100 and 1220, your devices go across the width under the other two.
+  const three = mediaBlocks(settingsCss, /min-width:\s*1220px/);
+  assert.match(three, /\[data-settings-modal\] \.modal__scroll \{ grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\) minmax\(0, 1\.16fr\);/);
+  assert.match(three, /\.settings-column--devices \{ grid-column: auto;/);
+  // Never one column scrolling on its own.
+  assert.doesNotMatch(settingsCss, /\.settings-column[^{]*\{[^}]*overflow/);
 });
 
 test('Privacy, What’s new and Insights use the height the screen has; Insights stays inside a fitted window', () => {

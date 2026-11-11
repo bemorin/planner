@@ -52,7 +52,7 @@ const UPDATE_API_MESSAGE = 'Update the API to see trends: this one does not answ
 // This page's own release, kept in step with package.json and src/config.js
 // (tests/admin-version.test.js). Not imported: it must come from this very
 // file, so an old cached admin.js shows its old number.
-const APP_VERSION = '1.39.0';
+const APP_VERSION = '1.39.1';
 // What Reload fetches again past the browser cache before opening the page anew.
 const DASHBOARD_FILES = ['./', './admin.js', './admin.css', './version.js', './attention.js', './requests-view.js', './usage-counts.js', './trends-view.js', './trends.js', './charts.js', '../styles.css', '../runtime-config.js', '../src/vendor/motion.js', '../src/lib/planner-api.js', '../src/config.js', '../legal/legal-details.js', '../src/lib/text.js', '../src/lib/dom.js'];
 const RELOAD_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4.5v4h-4"/></svg>';

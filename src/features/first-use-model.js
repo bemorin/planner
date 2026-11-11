@@ -416,17 +416,9 @@ const GUIDES = {
       }
     ]
   },
+  // In the order Settings reads (1.39.1): the time, the categories, then your devices.
   settings: {
     steps: [
-      {
-        id: 'devices',
-        variants: [{
-          spot: ['.settings-group--devices'],
-          name: 'Your devices',
-          title: 'On every device',
-          body: () => '**Install the app** gives the planner its own window, offline. **Sync on all my devices** keeps your phone and computer in step through your own Google Drive.'
-        }]
-      },
       {
         id: 'week',
         variants: [{
@@ -443,7 +435,16 @@ const GUIDES = {
           spot: [{ css: '.settings-group [data-category-settings]', closest: '.settings-group' }],
           name: 'Categories & projects',
           title: 'Categories & projects',
-          body: () => 'Rename, recolour or archive. An archived category leaves new blocks, but keeps its history in **Time stats**.',
+          body: () => 'Rename, recolour or archive. An archived category leaves new blocks, but keeps its history in **Time stats**.'
+        }]
+      },
+      {
+        id: 'devices',
+        variants: [{
+          spot: ['.settings-group--devices'],
+          name: 'Your devices',
+          title: 'On every device',
+          body: () => '**Install the app** gives the planner its own window, offline. **Sync on all my devices** keeps your phone and computer in step through your own Google Drive.',
           keys: ['closeSettings']
         }]
       }

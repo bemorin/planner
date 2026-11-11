@@ -2,6 +2,14 @@
 
 All notable changes to Daily Planner are recorded here. Versions follow `major.minor.patch`; a feature release bumps the minor number.
 
+## 1.39.1 — 2026-11-11
+
+A calmer Settings dialog.
+
+- **Settings fits on the screen.** On a wide screen its sections sit in three columns, read in order: Appearance and the time the planner shows (Displayed hours, Planning week), Categories & projects, then Your devices with Personal sync directly under it. Privacy closes the dialog in one row. With a typical set of categories, everything is in view at 1280×800 and above without scrolling; when there is more, the whole dialog scrolls, never one column. On phones it stays one column, with Your devices now next to Personal sync.
+- **Categories & projects is one list.** Each row shows the whole name, edited in place, with quiet Archive and Delete buttons. Type a name in the last row and press Enter to add a category in the next distinct colour. Archived categories wait in a folded “Archived (n)” list, with Restore.
+- The dialog is now called **Settings**, and says that changes are saved as you make them.
+
 ## 1.39.0 — 2026-11-11
 
 The first open-source release. Daily Planner is free for everyone, under the MIT licence.

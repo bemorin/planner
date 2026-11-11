@@ -39,7 +39,7 @@ export const LEGAL_PHONE = runtimeValue('LEGAL_PHONE');
 export const LEGAL_ADDRESS = runtimeValue('LEGAL_ADDRESS');
 export const LEGAL_REGISTRATION = runtimeValue('LEGAL_REGISTRATION');
 // Kept in step with package.json by scripts/check.mjs; feedback is grouped by it.
-export const APP_VERSION = '1.39.1';
+export const APP_VERSION = '1.39.2';
 // Public/project links are deployment configuration, not repository defaults.
 
 

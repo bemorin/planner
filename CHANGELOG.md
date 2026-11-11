@@ -2,6 +2,13 @@
 
 All notable changes to Daily Planner are recorded here. Versions follow `major.minor.patch`; a feature release bumps the minor number.
 
+## 1.39.2 — 2026-11-11
+
+Two fixes.
+
+- **How it works: Get started takes the full width.** On a wide screen, Get started (Tour and Tips) no longer sits in the left half above a full-width About this planner: each group is a list of rows across the dialog, one under the other, with every action lined up at the right, Take the tour as wide as What’s new and Read the notice. The guide below still reads row by row, and on phones each row’s button still takes the full width.
+- **Menus close on a second click.** Clicking the button of an open menu or picker now closes it, and the next click opens it again, instead of playing its opening animation again: Week starts on, Displayed hours (From, To), a block’s category, start and end, the date pickers, the category colours, Time stats’ help and the menus in Horizon. A list drawn over its button (the time menus, a block’s category) puts the current choice right over it, so that second click leaves the value as it was. Escape and a click outside close them as before, and focus returns to the button; its expanded state is announced on the button itself, not on the time field around it, and the Week starts on, category and first-run hour lists now say their name.
+
 ## 1.39.1 — 2026-11-11
 
 A calmer Settings dialog.

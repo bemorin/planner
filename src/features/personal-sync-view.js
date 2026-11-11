@@ -49,6 +49,15 @@ export function storageSyncLine(clouds = []) {
   return `Optional Personal sync keeps a sealed copy in your own ${where}; local recovery snapshots stay on this device. ${how}.`;
 }
 
+/**
+ * The card's line after a sync whose changes from the copy this browser refused to store (its storage full,
+ * 1.39.3): they stay in the copy, and the next sync fetches them again.
+ */
+export function refusedNote(count) {
+  const n = Math.max(1, Number(count) || 1);
+  return `This browser is out of space for your planner: ${n} ${n === 1 ? 'change' : 'changes'} from your other devices couldn’t be stored here. ${n === 1 ? 'It stays' : 'They stay'} in your synced copy, and the next sync fetches ${n === 1 ? 'it' : 'them'} again.`;
+}
+
 /** The planner's own time format (the schedule's: 14:58). */
 const plannerClock = date => clockTime(date.getHours() * 60 + date.getMinutes());
 

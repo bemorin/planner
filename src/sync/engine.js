@@ -21,6 +21,8 @@ function allRecordIds(localRecords, remoteRecords, ledger) {
  * - What is pulled is applied, and agreed on in the ledger, before the write: when the write is refused (another
  *   device wrote meanwhile) and the sync runs again, those records are not taken for local changes. The error
  *   then carries `pulled`, so the planner can draw them.
+ * - A pulled record this browser refuses to store (storage full) stays un-applied and is pulled again next time;
+ *   the result (or the error) lists it in `refused`.
  * - `movedTo` (1.38, “Switch to Dropbox”): kept from the copy unless given ('' clears it); `applyPulls: false`
  *   writes the copy without changing this device's planner (the marker written into the cloud left behind).
  */
@@ -90,25 +92,30 @@ export function createSyncEngine({ store, ledger, recoveryStore = null, now = ()
       return { status: 'conflict', conflicts, pulled: [], pushed: [], copyChanged, movedTo: remoteMovedTo };
     }
 
-    const applied = applyPulls ? pulled : [];
-    if (applied.length) await snapshot('before-remote-sync', buildBackup);
-    if (typeof beforeApply === 'function') await beforeApply({ pulled: applied, pushed });
+    const toApply = applyPulls ? pulled : [];
+    if (toApply.length) await snapshot('before-remote-sync', buildBackup);
+    if (typeof beforeApply === 'function') await beforeApply({ pulled: toApply, pushed });
 
-    if (applied.length) {
+    // A record the browser refuses to store (its storage full, 1.39.3) is not applied: its base stays as it was, so
+    // this device's older version is never taken for the newer one (and sent over it), and the next sync pulls it
+    // again. The result names it in `refused`.
+    const refused = [];
+    if (toApply.length) {
       store.withoutMutationTracking(() => {
-        for (const recordId of applied) {
+        for (const recordId of toApply) {
           const remoteRecord = remoteRecords[recordId];
           const key = recordIdToPlannerKey(recordId);
           if (!key || !remoteRecord) continue;
-          if (remoteRecord.deletedAt) store.remove(key);
-          else store.writeJSON(key, remoteRecord.value);
+          const stored = remoteRecord.deletedAt ? store.remove(key) : store.writeJSON(key, remoteRecord.value);
+          if (stored === false) refused.push(recordId);
         }
       });
-      // Agreed on now: this device holds what the copy held. A refused write below leaves that true.
-      for (const recordId of applied) {
-        const record = remoteRecords[recordId];
-        if (record) ledger.markRemoteApplied(recordId, { hash: record.hash, deletedAt: record.deletedAt });
-      }
+    }
+    const applied = toApply.filter(recordId => !refused.includes(recordId));
+    // Agreed on now: this device holds what the copy held. A refused write of the copy below leaves that true.
+    for (const recordId of applied) {
+      const record = remoteRecords[recordId];
+      if (record) ledger.markRemoteApplied(recordId, { hash: record.hash, deletedAt: record.deletedAt });
     }
 
     // `rewrite`: the copy is sealed for the first time or under a new passphrase (./protection.js), so it is written whole.
@@ -119,6 +126,7 @@ export function createSyncEngine({ store, ledger, recoveryStore = null, now = ()
         await provider.write(nextDocument, { fileId: remotePayload?.fileId || '' });
       } catch (error) {
         if (error && typeof error === 'object' && applied.length) error.pulled = [...applied];
+        if (error && typeof error === 'object' && refused.length) error.refused = [...refused];
         throw error;
       }
     }
@@ -138,7 +146,7 @@ export function createSyncEngine({ store, ledger, recoveryStore = null, now = ()
     }
 
     if (typeof afterApply === 'function') await afterApply({ pulled: applied, pushed });
-    return { status: 'ok', conflicts: [], pulled: applied, pushed, copyChanged, movedTo: nextMovedTo };
+    return { status: 'ok', conflicts: [], pulled: applied, pushed, refused, copyChanged, movedTo: nextMovedTo };
   }
 
   return { sync };

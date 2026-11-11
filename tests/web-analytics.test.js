@@ -17,7 +17,7 @@ test('the cookies page says what Cloudflare Web Analytics does, and no longer th
   assert.match(words, /the pages load Cloudflare Web Analytics, which our host, Cloudflare, runs for us\. It sets no cookies and keeps nothing in your browser, doesn’t fingerprint your device and doesn’t follow you to other sites: we only see totals/);
   assert.match(words, /No consent is needed for it: it only measures this site’s audience, without cookies, anonymously and in totals, within the CNIL’s rules for audience measurement/);
   assert.match(cookies, /<a href="\.\.\/privacy\/#visits">privacy policy<\/a>/);
-  assert.match(cookies, /<p class="lg-updated">Last updated: <time datetime="2026-11-10">10 November 2026<\/time><\/p>/);
+  assert.match(cookies, /<p class="lg-updated">Last updated: <time datetime="2026-11-11">11 November 2026<\/time><\/p>/);
 });
 
 test('the privacy policy: visits measured by Cloudflare as our host, the hashed IP kept at most 24 hours', () => {

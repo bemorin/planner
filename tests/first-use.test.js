@@ -5,9 +5,10 @@ import { anyTipSeen, buildGuideSteps, canShowGuide, coveredBy, GUIDE_DIALOGS, GU
 import { boldTerms, plainText } from '../src/features/tour-model.js';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
-const [html, app, sw, horizonView, stats, weekReview, insightsView, firstUseJs, tourJs, tourCss, guidesCss, core] = await Promise.all([
+const [html, app, sw, horizonView, stats, weekReview, insightsView, firstUseJs, tourJs, tourCss, guidesCss, core, journalJs] = await Promise.all([
   '../index.html', '../app.js', '../sw.js', '../src/features/horizon-view.js', '../src/features/stats.js', '../src/features/week-review.js',
-  '../src/features/insights-view.js', '../src/features/first-use.js', '../src/features/tour.js', '../styles/tour.css', '../styles/guides.css', '../styles/core.css'
+  '../src/features/insights-view.js', '../src/features/first-use.js', '../src/features/tour.js', '../styles/tour.css', '../styles/guides.css', '../styles/core.css',
+  '../src/features/journal.js'
 ].map(read));
 
 // Where the dialogs' labels live: a bold name in a guide reads exactly like one of them.
@@ -167,7 +168,8 @@ test('the keys a guide teaches are the ones the dialog handles', () => {
 
 test('every guide’s dialog and parts exist in the planner', () => {
   Object.values(GUIDE_DIALOGS).forEach(selector => assert.match(html, new RegExp(`class="modal[^"]*" ${selector.slice(1, -1)} hidden`), selector));
-  const sources = [html, app, horizonView, stats, weekReview, insightsView].join('\n');
+  // The Journal's rows are drawn by src/features/journal.js (1.39.3).
+  const sources = [html, app, horizonView, stats, weekReview, insightsView, journalJs].join('\n');
   const tokens = selector => selector.match(/\.[\w-]+|\[[\w-]+/g) || [];
   Object.entries(GUIDES_BY_ID).forEach(([id, guide]) => guide.steps.forEach(step => step.variants.forEach(variant => {
     [...variant.spot, variant.when || ''].concat(guide.requires || '').flatMap(entry => [typeof entry === 'string' ? entry : entry.css, entry?.closest || '']).filter(Boolean).forEach(selector => {

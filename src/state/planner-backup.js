@@ -6,7 +6,12 @@ export function formatStorageBytes(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function buildPlannerBackup(store, { exportedAt = new Date().toISOString() } = {}) {
+/**
+ * Everything the planner keeps, as a backup file: its days and settings from `store`. With `live` ({ day, state,
+ * settings }), the day on screen and the settings in memory are laid over what storage holds (1.39.3): a change the
+ * browser refused to save (its storage full) is still in the file.
+ */
+export function buildPlannerBackup(store, { exportedAt = new Date().toISOString(), live = null } = {}) {
   const days = {};
   store.keys('daily-planner:').forEach(key => {
     if (key === 'daily-planner:settings') return;
@@ -16,6 +21,8 @@ export function buildPlannerBackup(store, { exportedAt = new Date().toISOString(
   });
   let settings = null;
   try { settings = withoutRetiredSettings(store.readJSON('daily-planner:settings')); } catch (_) {}
+  if (live?.day && live.state && typeof live.state === 'object') days[live.day] = JSON.parse(JSON.stringify(live.state));
+  if (live?.settings && typeof live.settings === 'object') settings = withoutRetiredSettings(JSON.parse(JSON.stringify(live.settings)));
   // Version 13, as in 1.38: a 1.39 backup imports into 1.38 unchanged, and the other way round.
   return { app: 'Daily Planner', version: 13, exportedAt, settings, days };
 }

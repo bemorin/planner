@@ -150,7 +150,7 @@ Release notes are in [`CHANGELOG.md`](./CHANGELOG.md).
 
 ## Support the project
 
-Daily Planner is free, with no ads and nothing to buy. If it helps you and you'd like to support its work, you can sponsor it on GitHub Sponsors at [github.com/sponsors/bemorin](https://github.com/sponsors/bemorin), whenever sponsorships are open there. Sponsoring is never required, and nothing in the planner depends on it.
+Daily Planner is free, with no ads and nothing to buy. If it helps you and you'd like to support its work, you can sponsor it on GitHub Sponsors at [github.com/sponsors/bemorin](https://github.com/sponsors/bemorin). Sponsoring is never required, and nothing in the planner depends on it.
 
 ## Licence
 

@@ -1,0 +1,42 @@
+name: Release
+
+# One GitHub release per version: after a push to main, if the version in package.json has no release yet,
+# tag the pushed commit v<version> and publish that version's CHANGELOG section as the notes.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # Only the public repository publishes releases.
+    if: github.repository == 'bemorin/planner'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Publish the release if this version has none
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          tag="v${version}"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "Release $tag already exists."
+            exit 0
+          fi
+          awk -v v="$version" '
+            $0 ~ "^## " v " " { on = 1; next }
+            on && /^## / { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::CHANGELOG.md has no section for $version"
+            exit 1
+          fi
+          title=$(grep -m1 "^## ${version} " CHANGELOG.md | sed 's/^## //')
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$title" --notes-file notes.md --latest

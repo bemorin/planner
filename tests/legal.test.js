@@ -37,9 +37,10 @@ test('the four legal pages exist, and each footer links all four in order', asyn
   for (const [folder, file] of Object.entries(PAGES)) {
     const html = await read(file);
     assert.match(html, /^<!doctype html>/i, file);
-    // All four were last changed on 10 November 2026 (1.39: the planner is free and open source, under the MIT licence,
-    // and nothing is sold; 1.38 that same day: Dropbox, the sealed copy, Google's access kept until it runs out).
-    const dates = { 'legal/': ['2026-11-10', '10 November 2026'], 'legal/terms/': ['2026-11-10', '10 November 2026'], 'legal/privacy/': ['2026-11-10', '10 November 2026'], 'legal/cookies/': ['2026-11-10', '10 November 2026'] };
+    // Last changed on 10 November 2026 (1.39: the planner is free and open source, under the MIT licence, and nothing
+    // is sold; 1.38 that same day: Dropbox, the sealed copy, Google's access kept until it runs out); the cookies page
+    // again on 11 November 2026 (1.39.3: the day the storage warning was last opened, daily-planner-ui:storage-warned).
+    const dates = { 'legal/': ['2026-11-10', '10 November 2026'], 'legal/terms/': ['2026-11-10', '10 November 2026'], 'legal/privacy/': ['2026-11-10', '10 November 2026'], 'legal/cookies/': ['2026-11-11', '11 November 2026'] };
     const [iso, day] = dates[folder];
     const updated = new RegExp(`Last updated: <time datetime="${iso}">${day}</time>`);
     assert.match(html, updated, `${file} shows the date`);
@@ -505,7 +506,7 @@ test('the privacy policy: what the app still does, and nothing about payments, l
 
 test('the cookies page: no partner code, referral, currency or licence key any more', async () => {
   const html = await read('legal/cookies/index.html');
-  assert.ok(html.includes(DATED));
+  assert.ok(html.includes('<p class="lg-updated">Last updated: <time datetime="2026-11-11">11 November 2026</time></p>'), 'dated with its last change (1.39.3)');
   assert.doesNotMatch(html, /creem_ref|daily-planner-ui:(?:ref|partner-hints|currency|plus-[a-z-]+)|data-partner-days/);
   assert.doesNotMatch(text(html), COMMERCIAL);
   for (const key of RETIRED_KEYS) assert.ok(!html.includes(`<code>${key}</code>`), `${key}: removed by the planner, no longer listed`);

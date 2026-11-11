@@ -23,7 +23,8 @@ app.js                   application coordinator and shared interaction shell
   │   ├─ text.js
   │   └─ utils.js
   ├─ src/state/
-  │   └─ local-store.js
+  │   ├─ local-store.js    never throws; reports every write's result (onWrite)
+  │   └─ storage-health.js refused writes until one lands; how full storage is against the browser's quota
   ├─ src/sync/
   │   ├─ cloud.js          the provider interface both clouds answer, PKCE helpers
   │   ├─ document.js
@@ -48,12 +49,14 @@ app.js                   application coordinator and shared interaction shell
       ├─ fit.js
       ├─ horizon-model.js
       ├─ horizon-view.js     Horizon sections, overview ribbon, Add chooser
+      ├─ journal.js         the Journal: a light index of the saved days, built once per opening, 40 rows a page
+      ├─ storage-alert.js   the header notice when a save is refused or storage is 80% full; Data on this device's line
       ├─ personal-sync.js
       ├─ personal-sync-view.js  Personal sync's states, copy and passphrase forms (pure)
       ├─ sync-status.js     Personal sync's header alert and popover, from getState() / subscribe()
       ├─ pip-styles.js      Picture-in-Picture stylesheet (injected into the floating window)
       ├─ pip-window.js      Picture-in-Picture: Focus, Plan and Schedule, day-by-day navigation, sync with the main window
-      ├─ print.js
+      ├─ print.js           Day and Week sheets; a long Day plan steps down to stay on its page (fitDayPlan)
       ├─ search.js
       ├─ stats.js
       ├─ week-review.js
@@ -134,6 +137,15 @@ closeTransfers[]
 
 Normalization happens when data is loaded so older local records can continue to work as fields evolve.
 
+### When local storage is full (1.39.3)
+
+`localStorage` refuses a write once the origin's quota is reached. Quotas count keys and values together in UTF-16 code units (2 bytes a character): Chromium allows 10 MiB an origin (5,242,880 characters, measured), Safari 5 MiB (2,621,440). A typical day is about 2.5K characters, a rich one about 6.4K, `daily-planner:settings` with two years of Horizon about 25K.
+
+- `src/state/local-store.js` never throws into the planner: a refused write returns `false` and is reported to `onWrite({ key, ok, error, tracked })` (`tracked: false` for a sync pull's writes).
+- `src/state/storage-health.js` turns those results into what the person must hear: a change was refused (a day, the settings, another `daily-planner:` key) and none has landed since. A day's refused change that is no longer on screen (another day opened, a sync, an import) keeps it up until the next change lands. When a write lands, `app.js` writes what is still refused and held in memory (the day on screen, the settings) once more. Only Personal sync's “changed” mark refused, the change itself saved, is told apart (`syncMarkRefused`). It changes state once, never at each refused keystroke.
+- `src/features/storage-alert.js` shows it as a header pill and popover in the style of Personal sync's alert, with Export backup and Data on this device, and writes the line in How it works → Data on this device. Saving that never worked in this browser (blocked, or no room at all, as in some private windows) is left to the startup dialog: no notice, no meter. Export backup lays the day on screen and the settings in memory over what storage holds (`buildPlannerBackup(store, { live })`), so a refused change is in the file.
+- How full storage is: every key, in characters, against `storageBudget()`: Chromium's quota where `navigator.vendor` says Chromium, Safari's elsewhere (the smaller, and the only one known for the others), shown as “about”. `navigator.storage.estimate()` can't be used: it reports the origin's quota for IndexedDB and the caches, not localStorage's. It is measured as How it works opens, and for the header's warning at most once a minute when the browser is idle (and once more as saves land again), never per save. From 80% Data on this device warns, and the header once a day (`daily-planner-ui:storage-warned`) until opened.
+- Personal sync: `src/sync/ledger.js` `recordMutation` returns `false` when its mark is refused and holds it, counted as a change waiting, until it is written with the next one; a held mark whose record is synced or forgotten meanwhile is dropped. A day marked less than 30 seconds earlier keeps its mark, so typing doesn't rewrite the ledger at each keystroke. `src/sync/engine.js` leaves a pulled record the browser refuses to store un-applied, names it in `refused`, and pulls it again next time; Personal sync says so on its card and in its header alert.
 
 ## Personal sync invariants
 

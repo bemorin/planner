@@ -2638,6 +2638,14 @@ h3,
 
 .storage-card__side .danger-link-button { margin: 2px 0 0; text-align: center; }
 
+/* How full local storage is (1.39.3): every key, in characters, against Safari's 5 MB, the smallest quota. */
+.storage-meter { display: grid; gap: 5px; margin: 1px 0 3px; }
+.storage-meter__track { height: 5px; overflow: hidden; border-radius: 999px; background: var(--soft); box-shadow: inset 0 0 0 1px var(--line); }
+.storage-meter__track i { display: block; width: var(--fill, 0%); height: 100%; border-radius: inherit; background: var(--muted); }
+.storage-meter.is-warning .storage-meter__track i { background: var(--sync-wait); }
+.storage-meter small { color: var(--muted); font-size: .62rem; text-align: center; font-variant-numeric: tabular-nums; }
+.storage-meter.is-warning small { color: var(--sync-wait-ink); font-weight: 650; }
+
 .storage-import-button { width: 100%; }
 
 .storage-safety { margin-top: .55rem; padding: .5rem .55rem; border-radius: 7px; background: color-mix(in srgb, var(--soft) 70%, transparent); font-size: .66rem; line-height: 1.45; }
@@ -3020,10 +3028,14 @@ div.open-work-row__main { cursor: default; }
 
 /* PiP date navigation copies the app's pill geometry instead of inventing a second language. */
 
+/* Phones: each day's memory above its lesson, beside the date; the labels read the same way, “Best memory ·
+   Lesson learned” over that one column (1.39.3; before, the second label stood over an empty third column). */
 @media (max-width: 620px) {
   .journal-columns-head,
-.journal-row { grid-template-columns: 64px minmax(0,1fr) minmax(0,1fr); gap: 8px; }
-  .journal-columns-head { padding-inline: 6px; }
+  .journal-row { grid-template-columns: 64px minmax(0,1fr); gap: 8px; }
+  .journal-columns-head { grid-template-columns: 64px max-content minmax(0,1fr); column-gap: 0; padding-inline: 6px; }
+  .journal-columns-head strong:first-of-type { margin-left: 8px; }
+  .journal-columns-head strong + strong::before { content: "\00b7"; margin: 0 .45em; }
   .journal-row { padding-inline: 6px; }
   .journal-cell strong { font-size: .62rem; -webkit-line-clamp: 3; }
 }
@@ -4217,9 +4229,17 @@ div.open-work-row__main { cursor: default; }
   .end-day-triage { justify-content: flex-end; }
 }
 
-/* Journal on wider screens: the date reads at the size of the entries beside it. */
+/* Journal on wider screens (1.39.3): a dialog of its own width, between the default 40rem and Insights' 62rem,
+   so that a memory and a lesson read as sentences; a roomier date column; each entry up to three lines, in the
+   same quiet rows (no chrome until hover) under the sticky column labels. Phones keep the stacked rows above. */
 @media (min-width: 621px) {
+  .modal--journal .modal__panel { width: min(100%, 56rem); }
+  .modal--journal .modal__scroll { padding-inline: 1.3rem 1.2rem; }
   .journal-columns-head,
-  .journal-row { grid-template-columns: 116px minmax(0,1fr) minmax(0,1fr); }
-  .journal-row time { padding-top: 0; color: var(--muted); font-size: .72rem; font-weight: 620; line-height: 1.38; }
+  .journal-row { grid-template-columns: clamp(7rem, 12vw, 8rem) minmax(0,1fr) minmax(0,1fr); column-gap: clamp(.9rem, 2vw, 1.5rem); }
+  .journal-columns-head { padding-inline: 12px; }
+  .journal-row { padding: 11px 12px 12px; }
+  .journal-row time { padding-top: 0; color: var(--muted); font-size: .74rem; font-weight: 620; line-height: 1.5; }
+  .journal-cell strong { -webkit-line-clamp: 3; font-size: .78rem; line-height: 1.5; text-wrap: pretty; }
+  .journal-cell em { font-size: .74rem; line-height: 1.5; }
 }

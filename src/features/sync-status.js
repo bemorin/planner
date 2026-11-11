@@ -39,7 +39,7 @@ const POPOVER_WIDTH = 320;
 
 /**
  * What the alert says, from Personal sync's state (getState()): null when nothing waits on the person.
- * { kind: 'reconnect' | 'conflict' | 'passphrase', pill, label (the full sentence), title, lead, body,
+ * { kind: 'reconnect' | 'conflict' | 'passphrase' | 'space', pill, label (the full sentence), title, lead, body,
  *   primary, icon, action ('reconnect' | 'settings'), secondary ('' for none) }.
  */
 export function alertView(state, { now = new Date(), clock } = {}) {
@@ -70,6 +70,21 @@ export function alertView(state, { now = new Date(), clock } = {}) {
       lead: conflictSummary(state.conflicts),
       body: 'Both versions are kept until you choose which one stays. Your planner keeps working meanwhile.',
       primary: 'Review in Settings',
+      icon: '',
+      action: 'settings',
+      secondary: ''
+    };
+  }
+  // Changes from the copy this browser refused to store (its storage full, 1.39.3): fetched again at the next sync.
+  if (state.refused > 0) {
+    return {
+      kind: 'space',
+      pill: 'Sync needs space',
+      label: 'Changes from your other devices couldn’t be stored here: this browser is out of space',
+      title: 'Changes from your other devices couldn’t be stored here',
+      lead: 'This browser is out of space for your planner.',
+      body: 'They stay in your synced copy, and the next sync fetches them again once there is room.',
+      primary: 'Sync settings',
       icon: '',
       action: 'settings',
       secondary: ''

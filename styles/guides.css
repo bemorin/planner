@@ -874,23 +874,20 @@
 }
 
 /* How it works on a wide screen (1.38): the dialog takes the room, up to 1040px (1300px on a 1920px screen
-   with the app fitted to it). Get started and About this planner sit side by side, Beyond your planner
-   under them; Data on this device and the shortcuts (in four columns) take the full width. The guide
-   (1.38.1) then reads row by row, two items to a row, left to right then down (1 2 / 3 4 / …), in the
-   order of the page, so Tab and screen readers go the same way; each item keeps its own height
-   (align-items: start), so opening or closing one only changes its own row. Below 1000px, nothing changes. */
+   with the app fitted to it). Get started and About this planner (1.39.2) are lists of rows, so each takes
+   the full width, one under the other, their actions lined up at the right at one x and one width; only
+   small sibling cards of one height may sit side by side (.help-cards). Data on this device and the
+   shortcuts (in four columns) take the full width too. The guide (1.38.1) then reads row by row, two items
+   to a row, left to right then down (1 2 / 3 4 / …), in the order of the page, so Tab and screen readers go
+   the same way; each item keeps its own height (align-items: start), so opening or closing one only
+   changes its own row. Below 1000px, nothing changes. */
 @media screen and (min-width: 1000px) {
   .modal__panel--help { width: min(100%, clamp(640px, calc(640px + (100vw - 1000px) * 1.4), 1040px)); }
 }
 
 @media screen and (min-width: 1100px) {
   .modal__panel--help .modal__scroll { padding-inline: 1.4rem 1.3rem; }
-  .help-start { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 24px; margin-bottom: 26px; }
-  /* The two groups side by side line up: titles on one line, lists of one height, their rows sharing it. */
-  .help-start > .help-group { grid-template-rows: auto 1fr; }
-  .help-start .help-list { display: grid; }
-  .help-start > .help-group:last-child,
-  .help-start:not(:has(> .help-group:nth-child(2) :is(.help-row, .help-card):not([hidden]))) > .help-group:first-child { grid-column: 1 / -1; }
+  .help-start { grid-template-columns: minmax(0, 1fr); gap: 20px; margin-bottom: 26px; }
   .help-content { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; align-items: start; }
   .help-content > :is(.help-priority-card, .help-faq--shortcuts) { grid-column: 1 / -1; }
   .help-content .shortcut-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 18px; }

@@ -41,6 +41,7 @@ import { forgetRetiredData, withoutRetiredSettings } from './src/state/retired-k
 import { buildPlannerBackup, formatStorageBytes } from './src/state/planner-backup.js';
 import { openDatePopover, openDateRangePopover } from './src/ui/calendar-popover.js';
 import { openListbox } from './src/ui/listbox.js';
+import { closeOnTriggerClick } from './src/ui/popover-trigger.js';
 import { createDialogReturns, focusDialog, focusOpener, keepTab, twinIn } from './src/ui/dialog-focus.js';
 import { createStatsFeature } from './src/features/stats.js';
 import { createInsightsFeature, renderInsightsEntry } from './src/features/insights.js';
@@ -1253,7 +1254,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
       if (item.value === '__add_category__') { openAddCategoryModal({ context: 'block' }); return; }
       blockTimeDraft.categoryId = item.value;
       refreshBlockCategoryTrigger();
-    }, { matchWidth: true, alignSelected: true, className: 'category-menu' });
+    }, { matchWidth: true, alignSelected: true, className: 'category-menu', label: 'Category / project' });
   }
 
   function moveLinkedSourceToDate(targetState, title, sourceState = state, sourceKey = ymd()) {
@@ -1492,7 +1493,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
       settings.weekStartsOn = Number(item.value);
       settings.weekStartsOnExplicit = true;
       saveSettings({ rerenderSettings: false });
-    }, { compact: true, matchWidth: true });
+    }, { compact: true, matchWidth: true, label: 'Week starts on' });
   }
 
   function maybePromptInstallOrSupport() {
@@ -1781,9 +1782,11 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
 
   function showPopover(anchor, popover, options = {}) {
     document.body.append(popover);
-    activePopover = { el: popover, anchor, parent: options.parentPopover || null };
-    backStack.open(popover, { alive: () => popover.isConnected, back: () => { const inside = popover.contains(document.activeElement); while (activePopover && popover.isConnected) closePopover(); if (inside) anchor?.focus?.({ preventScroll: true }); } });
-    anchor?.setAttribute('aria-expanded', 'true');
+    // aria-expanded goes on the control that opens it (a time field's menu button, not the field): src/ui/popover-trigger.js.
+    const trigger = options.trigger || anchor;
+    activePopover = { el: popover, anchor, trigger, parent: options.parentPopover || null };
+    backStack.open(popover, { alive: () => popover.isConnected, back: () => { const inside = popover.contains(document.activeElement); while (activePopover && popover.isConnected) closePopover(); if (inside) trigger?.focus?.({ preventScroll: true }); } });
+    trigger?.setAttribute('aria-expanded', 'true');
     const rect = anchor.getBoundingClientRect();
     const boundary = anchor.closest?.('.modal__panel')?.getBoundingClientRect?.() || options.parentPopover?.anchor?.closest?.('.modal__panel')?.getBoundingClientRect?.() || { left: 8, top: 8, right: innerWidth - 8, bottom: innerHeight - 8 };
     const boundaryPad = 10;
@@ -1814,6 +1817,10 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
       const selectedCenter = selectedOption.offsetTop + selectedOption.offsetHeight / 2;
       const maxScroll = Math.max(0, popover.scrollHeight - popover.clientHeight);
       popover.scrollTop = clamp(selectedCenter - anchorCenterInPopover, 0, maxScroll);
+      // A short list can't scroll its choice over the trigger: it moves there instead (within its bounds), so a
+      // second click on the trigger lands on the current choice and closes the list unchanged (1.39.2).
+      const shift = anchorCenterInPopover - (selectedCenter - popover.scrollTop);
+      if (Math.abs(shift) >= 1) popover.style.top = `${(top = clamp(top + shift, boundary.top + boundaryPad, Math.max(boundary.top + boundaryPad, boundary.bottom - pRect.height - boundaryPad)))}px`;
     }
     requestAnimationFrame(() => { popover.classList.add('is-open'); if (!popover.matches('.hz-add-menu')) popoverEnter(popover, { above: top < rect.top }); });
   }
@@ -1821,7 +1828,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   function closePopover() {
     if (!activePopover) return;
     const parent = activePopover.parent || null;
-    activePopover.anchor?.setAttribute('aria-expanded', 'false');
+    (activePopover.trigger || activePopover.anchor)?.setAttribute('aria-expanded', 'false');
     backStack.closed(activePopover.el);
     activePopover.el.remove();
     activePopover = parent;
@@ -3458,7 +3465,8 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   const datePicker = qs('[data-date-picker]');
   const openHeaderDatePicker = () => openCalendarPopover(datePicker, ymd(date), value => showDate(dateFromKey(value)), { minKey: '2026-01-01' });
   datePicker?.addEventListener('click', openHeaderDatePicker);
-  datePicker?.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openHeaderDatePicker(); } });
+  // Enter or Space clicks it, so a second press closes the calendar as a second click does (src/ui/popover-trigger.js).
+  datePicker?.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); datePicker.click(); } });
   qs('[data-search-open]').addEventListener('click', openSearchModal);
   qs('[data-expanded-view]').addEventListener('click', toggleExpandedView);
   qs('[data-print]').addEventListener('click', printPlanner);
@@ -3622,6 +3630,8 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   registerPwa();
 
   appTooltips.bind();
+  // A second click on the trigger of the open popover closes it, before its opener could draw it again (1.39.2).
+  closeOnTriggerClick(document, { getOpen: () => activePopover, close: closePopover });
   document.addEventListener('click', e => {
     if (!e.target.closest('.action-popover-wrap')) closeHeaderMenus();
     if (activePopover && !e.target.closest('.app-popover') && e.target !== activePopover.anchor && !activePopover.anchor?.contains(e.target)) closePopover();
@@ -3632,7 +3642,8 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     const key = e.key.toLocaleLowerCase();
     const editable = !!e.target.closest?.('input, textarea, [contenteditable="true"]');
     if (e.key === 'Escape') {
-      if (activePopover) { closePopover(); return; }
+      // Focus inside it (or lost with a click on its blank space) comes back to the control that opened it.
+      if (activePopover) { const { el, trigger } = activePopover; const back = el.contains(document.activeElement) || document.activeElement === document.body; closePopover(); if (back) trigger?.focus?.({ preventScroll: true }); return; }
       // A dialog that can't be dismissed (data-modal-keep: first-run setup) ends with its own button, never with Escape.
       if (activeModal?.hasAttribute('data-modal-keep')) return;
       if (activeModal) { closeModal(activeModal); return; }

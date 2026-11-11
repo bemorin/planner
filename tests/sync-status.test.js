@@ -140,6 +140,25 @@ test('the popover opens with focus inside, and Escape, a click outside and Back 
   assert.ok(keyStopped, 'single-key shortcuts stay out while it is open');
 });
 
+test('a second click on the pill closes the popover, and the next opens it again (1.39.2)', async () => {
+  const h = harness({ state: ended });
+  await h.trigger.click();
+  const first = h.popover();
+  assert.ok(first, 'opened');
+  // The press on the pill itself is not a click outside: the popover is still there when its click comes.
+  h.doc.listeners.pointerdown.forEach(fn => fn({ target: h.trigger }));
+  assert.equal(h.popover(), first, 'still open after the press on the pill');
+  await h.trigger.click();
+  assert.equal(h.popover(), null, 'the second click closes it, instead of opening it again');
+  assert.equal(h.trigger.getAttribute('aria-expanded'), 'false');
+  assert.equal(h.doc.activeElement, h.trigger, 'focus on the pill');
+  assert.equal(h.layers.closed.length, 1, 'Back forgets it');
+  assert.equal((h.doc.listeners.pointerdown || []).length, 0, 'no outside-click handler left behind');
+  await h.trigger.click();
+  assert.ok(h.popover() && h.popover() !== first, 'the third opens it again');
+  assert.equal(h.trigger.getAttribute('aria-expanded'), 'true');
+});
+
 test('Reconnect and save: called within the click itself, then “Saved” for a moment, then nothing', async () => {
   const h = harness({ state: ended });
   await h.trigger.click();

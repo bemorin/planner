@@ -1,4 +1,5 @@
 import { esc } from '../lib/text.js';
+import { popoverTrigger } from './popover-trigger.js';
 
 /**
  * The planner's own dropdown list — what a native <select> would be, in the
@@ -8,6 +9,13 @@ import { esc } from '../lib/text.js';
  * Home / End jump, typing a few letters finds an option, Enter or Space
  * chooses, Escape or Tab closes it and gives focus back to the trigger. Any
  * button with aria-haspopup="listbox" also opens its list with ↓ or ↑.
+ *
+ * A second click on the trigger closes the list, and the next opens it again
+ * (src/ui/popover-trigger.js); its aria-expanded is on the trigger, the menu
+ * button of a time field rather than the field round it. A list drawn over its
+ * trigger (alignSelected: the time menus, a block's category) puts the current
+ * choice right over it, so that second click lands on it and closes the list
+ * unchanged, as a native select does.
  *
  * Positioning, outside clicks and stacking stay with the app's popover
  * primitives: `ctx.showPopover(anchor, popover, options)` and `ctx.closePopover()`.
@@ -62,7 +70,7 @@ const openDialogs = () => document.querySelectorAll('.modal:not([hidden])').leng
 export function openListbox(ctx, anchor, items, selected, onSelect, options = {}) {
   ctx.closePopover();
   const opener = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
-  const trigger = anchor?.matches?.('button') ? anchor : opener && anchor?.contains?.(opener) ? opener : anchor?.querySelector?.('button') || anchor;
+  const trigger = popoverTrigger(anchor, opener);
   const popover = document.createElement('div');
   popover.className = `app-popover app-popover--list${options.compact ? ' is-compact' : ''}${options.timeMenu ? ' is-time-menu' : ''}${options.className ? ` ${options.className}` : ''}`;
   popover.id = `app-listbox-${(count += 1)}`;
@@ -130,7 +138,7 @@ export function openListbox(ctx, anchor, items, selected, onSelect, options = {}
     if (match >= 0) focusAt(match);
   });
 
-  ctx.showPopover(anchor, popover, options);
+  ctx.showPopover(anchor, popover, { ...options, trigger });
   const start = Math.max(0, buttons.findIndex(button => button.dataset.selectedOption));
   buttons.forEach((button, index) => { button.tabIndex = index === start ? 0 : -1; });
   buttons[start]?.focus({ preventScroll: true });

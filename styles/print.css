@@ -19,10 +19,9 @@
   .print-sheet {
     position: relative !important;
     width: 100% !important;
-    /* 178mm fits A4 and Letter landscape inside the 6mm page margin; the year map asks for more. */
-    height: var(--print-sheet-height, 178mm) !important;
+    height: var(--print-sheet-height) !important;
     min-height: 0 !important;
-    max-height: var(--print-sheet-height, 178mm) !important;
+    max-height: var(--print-sheet-height) !important;
     margin: 0 !important;
     overflow: hidden !important;
     break-inside: avoid !important;
@@ -38,6 +37,10 @@
 }
 
 /* Sheet-only classes of the printed page. Page-level rules stay in @media print. */
+/* Every sheet is as tall as the year, quarter and review sheets have been (1.39.4): 190mm, inside A4 landscape's
+   198mm within the 6mm margins (Letter's 204mm), and 8mm to spare for a browser that ignores @page and prints with
+   its own margins (Safari before 18.2). Day and Week give the height to the schedule's hours and to the notes. */
+.print-sheet { --print-sheet-height: 190mm; }
 .print-sheet * { box-sizing: border-box; }
 
 .print-sheet-head {
@@ -72,7 +75,7 @@
    display: none on screen), so that a Day sheet about to print can be laid out off-screen and its plan column
    fitted to the page (fitDayPlan in src/features/print.js). */
 .print-daily-layout {
-  height: 158mm;
+  height: calc(var(--print-sheet-height) - 20mm);
   display: grid;
   grid-template-columns: minmax(50mm, 29fr) minmax(0, 71fr);
   gap: 5mm;
@@ -118,7 +121,7 @@
 .print-notes p { min-height: 0; height: 100%; overflow: hidden; border: .2mm solid #ded9d2; border-radius: 2mm; }
 .print-schedule-column { min-width: 0; }
 .print-schedule-grid {
-  height: 147mm;
+  height: calc(var(--print-sheet-height) - 31mm);
   display: grid;
   grid-template-columns: 13mm minmax(0, 1fr);
   break-inside: avoid !important;
@@ -141,8 +144,9 @@
 .print-notes__text { display: block; }
 .print-notes__text.is-clamped { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; }
 
-/* On screen, a Day sheet about to print is measured off-screen at Letter's printable width, the narrower page. */
-.print-sheet--day.is-measuring { position: fixed; top: 0; left: 0; z-index: -1; width: 267.4mm; height: 178mm; display: block; overflow: hidden; visibility: hidden; pointer-events: none; }
+/* On screen, a Day sheet about to print is measured off-screen at Letter's printable width, the narrower page, and
+   at the height it prints. */
+.print-sheet--day.is-measuring { position: fixed; top: 0; left: 0; z-index: -1; width: 267.4mm; height: var(--print-sheet-height); display: block; overflow: hidden; visibility: hidden; pointer-events: none; }
 
 @media print {
   /* Shared schedule geometry */
@@ -244,7 +248,7 @@
   .print-week-corner strong { font-size: 7.1pt; }
   .print-week-body {
     position: relative;
-    height: 142mm;
+    height: calc(var(--print-sheet-height) - 36mm);
     display: grid;
     grid-template-columns: 13mm repeat(var(--week-days, 7), minmax(0, 1fr));
     break-inside: avoid !important;
@@ -273,7 +277,7 @@
 /* Horizon year map: one landscape page. Fixed light colours, like Day and Week.
    Empty parts keep their ruled lines and boxes so a blank year can be filled by hand.
    Sheet-scoped, outside @media print, so the sheet's rules never reach the planner. */
-/* 190mm still fits A4 (198mm) and Letter (204mm) landscape: more room to write by hand. */
+/* As every sheet (190mm, above): more room to write by hand. */
 .print-sheet--year { --print-sheet-height: 190mm; --pyr-line: #ddd8d1; --pyr-rule: #e6e1da; --pyr-muted: #8b867f; --pyr-faint: #aaa49c; --pyr-misogi: #a5522e; --pyr-milestone: #b97a46; --pyr-adventure: #2f6d70; --pyr-keydate: #5d4f8f; }
 .print-sheet--year h1,
 .print-sheet--year h2,

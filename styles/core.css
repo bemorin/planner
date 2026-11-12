@@ -3453,7 +3453,8 @@ div.open-work-row__main { cursor: default; }
 
 .end-day-habit input:checked { background:var(--ink); border-color:var(--ink); }
 
-.end-day-habit input:checked::after { content:""; position:absolute; left:5.5px; top:2px; width:4.5px; height:9px; border:solid white; border-width:0 1.6px 1.6px 0; transform:rotate(45deg); }
+/* The tick in the colour that stands out from --ink in both themes (as .check), never a fixed white (1.39.4). */
+.end-day-habit input:checked::after { content:""; position:absolute; left:5.5px; top:2px; width:4.5px; height:9px; border:solid var(--surface-strong); border-width:0 1.6px 1.6px 0; transform:rotate(45deg); }
 
 .end-day-habit span { min-width:0; display:grid; gap:2px; }
 

@@ -81,7 +81,8 @@ export function createSaveHealth({ onChange = () => {} } = {}) {
   const failed = new Set();
   let lost = false;
   let saved = false;
-  const failing = () => lost || [...failed].some(key => key !== LEDGER_KEY);
+  // Without walking every refused key: an import refused thousands of days notes each one (1.39.4).
+  const failing = () => lost || failed.size > (failed.has(LEDGER_KEY) ? 1 : 0);
   const markRefused = () => !failing() && failed.has(LEDGER_KEY);
   const signature = () => `${failing()}|${markRefused()}`;
 

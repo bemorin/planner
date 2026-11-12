@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -109,4 +109,40 @@ test('coloured text on its own tint, the legal kicker and the “now” pills re
   assert.ok(contrast(dark['on-current-time'], dark['current-time']) >= 4.5, 'the week’s now pill, dark');
   const pip = all['floating window dark'];
   assert.ok(contrast(pip['now-ink'], pip['now-line']) >= 4.5, 'the floating window’s now pill');
+});
+
+test('a checked box is unmistakable in both themes: its tick stands out from its fill, never a fixed white (1.39.4)', async () => {
+  // Boxes filled with --ink take their tick in --surface-strong (.check, the Close day habit, the notes' checklist,
+  // the floating window): 3:1 at least, in every planner theme and the floating window's.
+  const all = await themes();
+  for (const [name, t] of Object.entries(all)) {
+    if (!/^(planner|floating window)/.test(name)) continue;
+    const ratio = contrast(t['surface-strong'], t.ink);
+    assert.ok(ratio >= 3, `${name}: tick --surface-strong ${t['surface-strong']} on --ink ${t.ink} is ${ratio.toFixed(2)}:1`);
+  }
+  // The share switch's knob, on, sits on the palette's --hz-paint: every palette, light and dark.
+  const year = await read('styles/year.css');
+  const paint = (selector, fallback) => year.match(new RegExp(`${selector.replace(/[.[\]()"]/g, ch => `\\${ch}`)} \\{ --hz-paint: (#[0-9a-f]{6})`))?.[1] || fallback;
+  const { PAINT_PALETTES } = await import('../src/features/paint-palettes.js');
+  const lightMisogi = (await read('styles/horizon.css')).match(/--hz-misogi: (#[0-9a-f]{6})/)[1];
+  for (const [theme, t] of [['light', { ...all['planner light'], 'hz-misogi': lightMisogi }], ['dark', all['planner dark (chosen)']]]) {
+    for (const { id } of PAINT_PALETTES) {
+      const fill = id === 'terracotta' ? t['hz-misogi'] : paint(theme === 'dark' ? `:root[data-theme="dark"] .hz-palette--${id}` : `.hz-palette--${id}`, null);
+      assert.ok(fill, `${theme} ${id}: --hz-paint found`);
+      const ratio = contrast(t['surface-strong'], fill);
+      assert.ok(ratio >= 3, `${theme} ${id}: the knob (--surface-strong ${t['surface-strong']}) on --hz-paint ${fill} is ${ratio.toFixed(2)}:1`);
+    }
+  }
+  const files = [...(await readdir(join(root, 'styles'))).filter(name => name.endsWith('.css') && name !== 'print.css').map(name => `styles/${name}`), 'styles.css', 'welcome/landing.css', 'legal/legal.css', 'contact/contact.css', 'admin/admin.css', 'admin/configuration/configuration.css'];
+  const css = (await Promise.all(files.map(read))).join('\n') + pipStyles();
+  assert.ok(files.length >= 25, `${files.length} stylesheets`);
+  assert.match(css, /\.end-day-habit input:checked::after \{[^}]*border:solid var\(--surface-strong\);/, 'the Close day habit: the owner’s report');
+  assert.match(css, /\.check::after \{[^}]*border: solid var\(--surface-strong\);/);
+  assert.match(css, /\.rich-note-check\.is-checked::after \{[^}]*border: solid var\(--surface-strong\);/);
+  assert.match(css, /\.share-toggle input:checked \+ \.share-toggle__track::after \{ background: var\(--surface-strong\); \}/, 'the share switch, on');
+  // No tick, dot or knob of a checked control drawn in a fixed white on screen: every stylesheet and the floating
+  // window's, print.css aside (paper, always light).
+  const checked = [...css.matchAll(/([^{}]*:checked[^{}]*|[^{}]*\.is-checked[^{}]*)\{([^}]*)\}/g)];
+  assert.ok(checked.length > 10);
+  for (const [, selector, body] of checked) assert.doesNotMatch(body, /(?:border(?:-color)?|background):\s*(?:solid\s+)?(?:white|#fff\b|#ffffff\b)/i, `${selector.trim()}`);
 });

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createLocalStore } from '../src/state/local-store.js';
-import { buildPlannerBackup, formatStorageBytes } from '../src/state/planner-backup.js';
+import { buildPlannerBackup, formatStorageBytes, importPlannerBackup } from '../src/state/planner-backup.js';
 import { withoutRetiredSettings } from '../src/state/retired-keys.js';
 import { normalizePlannerSettings } from '../src/state/settings-state.js';
 
@@ -73,10 +73,15 @@ test('a 1.38 backup imports into 1.39: Horizon, misogi and quarter check-ins com
   const stored = store.readJSON('daily-planner:settings');
   assert.equal('plus' in stored || 'plusGift' in stored, false, 'not kept in storage either');
   assert.deepEqual(store.readJSON('daily-planner:2026-10-14'), backup138().days['2026-10-14']);
-  // The planner's own Import does the same, and accepts a 1.38 file as it is.
+  // The planner's own Import does the same (importPlannerBackup(), 1.39.4), and accepts a 1.38 file as it is.
   const app = read('app.js');
   assert.match(app, /if \(parsed && parsed\.app === 'Daily Planner' && parsed\.days && typeof parsed\.days === 'object'\) \{/);
-  assert.match(app, /store\.writeJSON\('daily-planner:settings', withoutRetiredSettings\(pendingImport\.settings\)\);/);
+  assert.match(app, /importReport\(inBulk\(\(\) => importPlannerBackup\(store, pendingImport, \{ budget: storageBudget\(\) \}\)\)\)/);
+  assert.match(read('src/state/planner-backup.js'), /store\.writeJSON\('daily-planner:settings', withoutRetiredSettings\(backup\.settings\)\)/);
+  const planner = createLocalStore(new MemoryStorage());
+  assert.deepEqual(importPlannerBackup(planner, backup138()), { days: 1, stored: 1, refused: [], settings: 'stored' });
+  assert.deepEqual(planner.readJSON('daily-planner:settings'), store.readJSON('daily-planner:settings'), 'the same settings as above');
+  assert.deepEqual(planner.readJSON('daily-planner:2026-10-14'), backup138().days['2026-10-14']);
 });
 
 test('a 1.39 backup imports into 1.38: the same format and version, the settings it knows, nothing it would trip on', () => {

@@ -87,7 +87,7 @@ test('the planner boots on it, and the one notice says plans won’t be kept', (
   const ensure = app.indexOf('ensureStorage(window)');
   assert.ok(iife > 0 && ensure > iife && ensure < app.indexOf('createSyncLedger('), 'before anything reads storage');
   assert.match(app, /createSyncLedger\(browserStorage\)/);
-  assert.match(app, /createLocalStore\(browserStorage, \{/);
+  assert.match(app, /createDayStore\(browserStorage, \{/, 'the day store (1.40), over local-store');
   assert.doesNotMatch(app, /window\.localStorage/, 'app.js never reads the browser’s storage directly');
   assert.match(app, /const available = !storageBlocked && store\.canWrite\('daily-planner:'\);/);
   assert.match(app, /openModal\(warning, qs\('\[data-modal-close\]\.primary-button', warning\), \{ stack: true \}\)/, 'over first-run setup, focus on Continue');

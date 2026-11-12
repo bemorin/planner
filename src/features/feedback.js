@@ -2,7 +2,7 @@ import { qs, qsa } from '../lib/dom.js';
 import { esc, escAttr } from '../lib/text.js';
 import { APP_VERSION, PROJECT_GITHUB_URL } from '../config.js';
 import { platformLabel, plannerApiEnabled, sendFeedback, trackEvent } from '../lib/planner-api.js';
-import { WHATS_NEW } from './whats-new.js';
+import { QUIET_RELEASES, WHATS_NEW } from './whats-new.js';
 
 /**
  * Feedback, once per feature release. People can always open it from Help or
@@ -63,6 +63,16 @@ function writeFeedbackState(state, storage = globalThis.localStorage) {
 }
 
 /**
+ * The release feedback asks about for a version: its feature release, except a quiet one (./whats-new.js
+ * QUIET_RELEASES, 1.40), which counts as the release whose note it keeps: nobody who answered about that one is
+ * asked again about a release they can't see.
+ */
+export function feedbackRelease(version = APP_VERSION) {
+  const release = featureVersion(version);
+  return QUIET_RELEASES.includes(release) ? WHATS_NEW.version : release;
+}
+
+/**
  * Pure prompt rule (unit-tested): ask about a feature release at most once,
  * only with the owner API on, after three closed days in total and two days on
  * this release, never within two weeks of the last prompt, and never over
@@ -70,7 +80,7 @@ function writeFeedbackState(state, storage = globalThis.localStorage) {
  */
 export function shouldPromptFeedback(state, { version = APP_VERSION, now = new Date(), closeDayCount = 0, enabled = true, busy = false }) {
   if (!enabled || busy || closeDayCount < PROMPT_RULES.closedDays) return false;
-  const entry = state.releases?.[featureVersion(version)];
+  const entry = state.releases?.[feedbackRelease(version)];
   // Once shown, a release is never asked about again — even if it was ignored
   // or the page reloaded before it was answered.
   if (!entry?.firstSeen || entry.sent || entry.dismissed || entry.prompted) return false;
@@ -83,6 +93,8 @@ export function createFeedbackFeature({ openModal, closeModal, openPrivacy = nul
   const modal = () => qs('[data-feedback-modal]');
   const root = () => qs('[data-feedback]');
   const release = featureVersion(APP_VERSION);
+  // What the prompt's state is kept under (a quiet release: the one it keeps the note of).
+  const asked = feedbackRelease(APP_VERSION);
   const blankDraft = () => ({ rating: null, kind: 'idea', message: '', email: '', quote: false, name: '' });
   let draft = blankDraft();
   // 'prompt' when it opened by itself (its quiet button is "Not now"), 'manual' from Help or the menu.
@@ -96,11 +108,11 @@ export function createFeedbackFeature({ openModal, closeModal, openPrivacy = nul
     writeFeedbackState(state);
   }
 
-  const mark = (field, now = new Date()) => update(state => { state.releases[release] = { ...(state.releases[release] || { firstSeen: now.toISOString() }), [field]: now.toISOString() }; });
+  const mark = (field, now = new Date()) => update(state => { state.releases[asked] = { ...(state.releases[asked] || { firstSeen: now.toISOString() }), [field]: now.toISOString() }; });
 
   /** Remember when this release was first used, so the prompt waits a few days. */
   function noteVersionSeen(now = new Date()) {
-    update(state => { state.releases[release] ||= { firstSeen: now.toISOString() }; });
+    update(state => { state.releases[asked] ||= { firstSeen: now.toISOString() }; });
   }
 
   function whatsNew() {
@@ -130,7 +142,7 @@ export function createFeedbackFeature({ openModal, closeModal, openPrivacy = nul
       bind();
       return;
     }
-    const sentBefore = !!readFeedbackState().releases[release]?.sent;
+    const sentBefore = !!readFeedbackState().releases[asked]?.sent;
     el.innerHTML = `${header()}${whatsNew()}
       <form class="feedback-form" data-feedback-form novalidate>
         <div class="feedback-ask">
@@ -240,7 +252,7 @@ export function createFeedbackFeature({ openModal, closeModal, openPrivacy = nul
     if (!shouldPromptFeedback(state, { version: APP_VERSION, now, closeDayCount, enabled: plannerApiEnabled(), busy: blocked })) return false;
     update(next => {
       next.lastPromptAt = now.toISOString();
-      next.releases[release] = { ...(next.releases[release] || { firstSeen: now.toISOString() }), prompted: now.toISOString() };
+      next.releases[asked] = { ...(next.releases[asked] || { firstSeen: now.toISOString() }), prompted: now.toISOString() };
     });
     show('prompt');
     trackEvent('feedback_prompt_shown');

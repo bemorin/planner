@@ -55,6 +55,9 @@ export function measureStorage(storage, { bytes = false } = {}) {
   return result;
 }
 
+/** Every key and value in `storage`, in characters, as quotas count them: what the bar and moves measure (1.40). */
+export const storageChars = storage => measureStorage(storage).chars;
+
 /**
  * How full storage is against `budget`: { chars, budget, share, percent, warn }. `percent` is whole and rounded
  * down, so the warning starts exactly when it reads 80%, and never above 100.

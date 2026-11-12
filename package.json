@@ -1,6 +1,6 @@
 {
   "name": "daily-planner",
-  "version": "1.39.4",
+  "version": "1.40.0",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -20,6 +20,7 @@
     "build": "node scripts/build.mjs",
     "smoke": "node scripts/smoke.mjs",
     "smoke:dist": "node scripts/smoke.mjs dist",
+    "scenarios:archive": "node scripts/archive-scenarios.mjs",
     "verify": "npm run lint && npm run format:check && npm run check && npm test && npm run quality && npm run build && npm run smoke:dist"
   },
   "description": "A lightweight vanilla-JS PWA for planning what matters, closing each day intentionally, and keeping unfinished work visible."

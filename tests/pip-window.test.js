@@ -5,8 +5,10 @@ import {
   PIP_UNRESOLVED,
   PIP_VIEWS,
   buildPipModel,
+  createPipFeature,
   normalizePipView,
   pipDateLabels,
+  pipLoadingMarkup,
   pipSchedule,
   pipShellMarkup,
   pipShortcut,
@@ -243,4 +245,52 @@ test('floating window styles: wrapping text, sized fields, motion only when welc
   assert.ok(motion, 'motion lives in one no-preference block');
   assert.doesNotMatch(still, /transition|animation/);
   assert.ok(css.split('\n').every(line => line.length <= 400), 'readable lines');
+});
+
+/** A floating window as far as render() goes: every element found, its markup and `inert` kept. */
+function fakePipWindow() {
+  const nodes = new Map();
+  const node = () => ({ innerHTML: '', inert: false, dataset: {}, style: {}, scrollTop: 0, setAttribute() {}, classList: { toggle() {} }, focus() {} });
+  const doc = { title: '', documentElement: { lang: '' }, head: { innerHTML: '' }, body: { innerHTML: '' }, activeElement: null, addEventListener() {}, querySelectorAll: () => [] };
+  doc.querySelector = selector => { if (!nodes.has(selector)) nodes.set(selector, node()); return nodes.get(selector); };
+  const win = { closed: false, document: doc, addEventListener() {}, close() { win.closed = true; }, focus() {}, CSS: { supports: () => true }, matchMedia: () => ({ matches: true }) };
+  return { win, panel: () => doc.querySelector('[data-pip-panel]') };
+}
+
+test('1.40 (review m2): while its day is still being read from the archive, the floating window has nothing to type into', async () => {
+  const { win, panel } = fakePipWindow();
+  const saved = { pip: globalThis.documentPictureInPicture, document: globalThis.document };
+  globalThis.documentPictureInPicture = { requestWindow: async () => win };
+  globalThis.document = { documentElement: { lang: 'en' } };
+  try {
+    let pending = true;
+    const edits = [];
+    const pip = createPipFeature({
+      storage: null,
+      getDate: () => new Date('2025-03-04T12:00:00'),
+      getState: () => ({ focus: 'Protect the morning', notes: '', priorities: [], tasks: [{ id: 't1', text: 'Typed before', done: false }], blocks: [] }),
+      isPending: () => pending,
+      ymd: date => date.toISOString().slice(0, 10),
+      editItem: (...args) => edits.push(args)
+    });
+    await pip.open();
+    assert.match(panel().innerHTML, /data-pip-loading/);
+    assert.match(panel().innerHTML, /Opening this day…/);
+    assert.doesNotMatch(panel().innerHTML, /<(textarea|input)/, 'no field to type into');
+    assert.equal(panel().inert, true);
+    // The day read: the planner draws it again, and so does the floating window.
+    pending = false;
+    pip.render();
+    assert.equal(panel().inert, false);
+    assert.doesNotMatch(panel().innerHTML, /data-pip-loading/);
+    assert.match(panel().innerHTML, /Protect the morning/);
+    assert.deepEqual(edits, []);
+  } finally {
+    globalThis.documentPictureInPicture = saved.pip;
+    globalThis.document = saved.document;
+  }
+  const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
+  assert.match(app, /isPending: \(\) => store\.pending\(storageKey\(\)\),/, 'the planner tells it, for the day it shows');
+  assert.match(app, /t: \(\) => \{ if \(!archiveKeeper\.viewPending\) openBlockModal\(/, 'and T adds no block to a day still opening');
+  assert.equal(pipLoadingMarkup().includes('role="status"'), true);
 });

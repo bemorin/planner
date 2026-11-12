@@ -27,6 +27,13 @@ export function buildPlannerBackup(store, { exportedAt = new Date().toISOString(
   return { app: 'Daily Planner', version: 13, exportedAt, settings, days };
 }
 
+/**
+ * The backup's file name (1.40): daily-planner-backup-YYYY-MM-DD.json, and …-recent-days.json when older days are in
+ * this browser's database and can't be read now (the archive 'unavailable' or 'lost'): the file then says what it is.
+ */
+export const backupFileName = (day, archive = 'none') => `daily-planner-backup-${day}${archive === 'unavailable' || archive === 'lost' ? '-recent-days' : ''}.json`;
+export const RECENT_DAYS_BACKUP = 'Your older days are kept in this browser’s database, which can’t be read right now, so this backup has your recent days only. Reload the planner and export again to include them.';
+
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**

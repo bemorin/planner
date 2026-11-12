@@ -2,6 +2,15 @@
 
 All notable changes to Daily Planner are recorded here. Versions follow `major.minor.patch`; a feature release bumps the minor number.
 
+## 1.40.0 — 2026-11-12
+
+Room for many more years of plans.
+
+- **Room for years more plans.** Once room is needed, older days now move by themselves to another, roomier part of this browser’s storage. Your recent days stay where they always were, and the Journal, Search, Insights, Progress, your reviews, backups and Personal sync keep seeing every day. Where this browser doesn’t offer that storage (some private windows), the planner keeps working as before, with the room it had.
+- **A change is saved even when space runs out,** wherever older days can move: if this browser refuses a change because it is full, the planner makes room at once. The header says “Saving…” for a moment, then your change is saved.
+- **A backup of many years imports whole** where older days can move: its older days go to that storage, instead of only the most recent days being imported.
+- **Data on this device** says how many older days are kept in this browser, and lets you download each safety copy the planner keeps here, as a backup you can import. When another tab saves over a day without seeing it, the version that was there is kept aside, the header says so once, and you can put it back from Data on this device (the version it replaces is kept aside in turn).
+
 ## 1.39.4 — 2026-11-12
 
 As quick after years of plans as on the first day, roomier Day and Week prints, clearer checkboxes in dark mode, and nothing lost when this browser runs out of space.

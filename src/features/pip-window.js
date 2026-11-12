@@ -357,6 +357,11 @@ function scheduleView(model) {
   return section('Schedule', meta, `<ol class="pip-timeline">${rows.join('')}</ol>`);
 }
 
+/** What the floating window shows while its day is still being read (1.40: an older day, from the archive). */
+export function pipLoadingMarkup() {
+  return '<div class="pip-empty" data-pip-loading role="status"><strong>Opening this day…</strong><p>Older days take a moment to open. You can type here again once it is.</p></div>';
+}
+
 /** The markup of one view of the floating window. */
 export function pipViewMarkup(view, model) {
   const name = normalizePipView(view);
@@ -509,6 +514,10 @@ export function createPipFeature(ctx) {
     renderHeader(dayKey, todayKey, direction);
     // A periodic refresh never pulls a field from under the caret or closes the calendar.
     if (tick && (editing() || q('[data-pip-date-picker]'))) return;
+    // An older day still being read (1.40, the archive): nothing to type into until it is open, as in the planner.
+    const loadingDay = !!ctx.isPending?.();
+    panel.inert = loadingDay;
+    if (loadingDay) { panel.innerHTML = pipLoadingMarkup(); return; }
     const model = buildPipModel({
       state,
       dayKey,

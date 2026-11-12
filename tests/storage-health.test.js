@@ -5,7 +5,7 @@ import { createLocalStore } from '../src/state/local-store.js';
 import { createSyncLedger } from '../src/sync/ledger.js';
 import { CHROMIUM_BUDGET_CHARS, SAFARI_BUDGET_CHARS, createSaveHealth, LEDGER_KEY, STORAGE_WARN_SHARE, measureStorage, storageBudget, storageLevel } from '../src/state/storage-health.js';
 import { buildPlannerBackup } from '../src/state/planner-backup.js';
-import { FULL_LEAD, FULL_TITLE, SYNC_LEAD, WARNED_KEY, createStorageAlert, storageAlertView, storageSafetyLine } from '../src/features/storage-alert.js';
+import { ARCHIVE_IN_USE, ARCHIVE_LOST, ARCHIVE_SETTLE, ARCHIVE_UNAVAILABLE, ASIDE_LEAD, ASIDE_SEEN_KEY, FULL_LEAD, FULL_TITLE, RESET_LEFT_LEAD, RESET_LEFT_TITLE, SYNC_LEAD, WARNED_KEY, asideDayLabel, asideTitle, createStorageAlert, keptAsideLine, storageAlertView, storageSafetyLine } from '../src/features/storage-alert.js';
 import { fakeDocument } from './support/fake-dom.js';
 
 // A save the browser refuses (its storage full) is told, and lasts until a later save lands (1.39.3); storage 80%
@@ -207,7 +207,8 @@ test('what the header and Data on this device say', () => {
   const full = storageAlertView({ failing: true, level: warn });
   assert.deepEqual([full.kind, full.pill, full.title, full.lead], ['full', 'Not saved', 'This browser is out of space for your planner.', 'Your latest change wasn’t saved.']);
   assert.equal(full.label, `${FULL_TITLE} ${FULL_LEAD}`);
-  assert.equal(full.body, 'Export a backup so nothing is lost. Older days can’t be moved out of this browser yet; Data on this device has the only way to make room.');
+  // 1.40: older days moved first; a change still refused means even that couldn't make room.
+  assert.equal(full.body, 'This browser can’t make more room for your planner here. Export a backup now, so nothing is lost.');
   const warning = storageAlertView({ failing: false, level: warn });
   assert.deepEqual([warning.kind, warning.pill, warning.title, warning.lead], ['warn', 'Storage about 86% full', 'Storage on this device is about 86% full.', 'Export a backup to keep everything safe.']);
   assert.equal(storageAlertView({ failing: false, level: warn, warnedToday: true }), null, 'once a day');
@@ -215,17 +216,61 @@ test('what the header and Data on this device say', () => {
   assert.equal(storageAlertView({ failing: true, level: calm, warnedToday: true }).kind, 'full', 'a refused save is always told');
   assert.equal(storageAlertView({ failing: true, level: warn, unavailable: true }), null, 'blocked or no room from the start: the startup dialog has said it');
 
-  assert.deepEqual(storageSafetyLine({ failing: true, level: calm }), { text: 'This browser is out of space for your planner. Your latest change wasn’t saved. Export a backup so nothing is lost. Older days can’t be moved out of this browser yet: the only way to make room is Reset local data, which deletes everything on this device.', warning: true });
+  assert.deepEqual(storageSafetyLine({ failing: true, level: calm }), { text: 'This browser is out of space for your planner. Your latest change wasn’t saved. This browser can’t make more room for your planner here. Export a backup now, so nothing is lost.', warning: true });
   assert.deepEqual(storageSafetyLine({ syncMarkRefused: true, syncInUse: true }), { text: `${FULL_TITLE} ${SYNC_LEAD} Export a backup so nothing is lost.`, warning: true });
   assert.deepEqual(storageSafetyLine({ syncMarkRefused: true, syncInUse: false }).warning, false);
   assert.match(storageSafetyLine({ available: false, failing: true }).text, /^Local saving is unavailable/, 'unavailable from the start: its own words, not “out of space”');
   assert.deepEqual(storageSafetyLine({ level: warn }), { text: 'Storage on this device is about 86% full. Export a backup to keep everything safe.', warning: true });
   assert.deepEqual(storageSafetyLine({ level: calm }).warning, false);
   assert.match(storageSafetyLine({ level: calm }).text, /^Local saving is available\./);
+  assert.equal(warning.body, 'Your planner is kept in this browser, which gives each site a limited space, and it can’t make more room here.');
+  // 1.40: while a refused change makes room, “Saving…”, in neutral words; never for the warning alone.
+  const saving = storageAlertView({ failing: true, saving: true, level: warn });
+  assert.deepEqual([saving.kind, saving.pill, saving.title, saving.lead], ['saving', 'Saving…', 'Making room for your planner.', 'Your latest change is being saved.']);
+  assert.equal(storageAlertView({ syncMarkRefused: true, syncInUse: true, saving: true }).kind, 'saving');
+  assert.equal(storageAlertView({ saving: true, level: warn }).kind, 'warn', 'nothing refused: nothing to save');
+  assert.equal(storageAlertView({ failing: true, saving: true, unavailable: true }), null);
+  // Data on this device, with older days in this browser's database.
+  const archive = { status: 'ready', archived: 980, displaced: 0 };
+  assert.deepEqual(storageSafetyLine({ level: calm, archive }), { text: `${ARCHIVE_IN_USE} Local saving is available. Private windows or clearing site data may still remove it — export a backup if you want to keep your planner history.`, warning: false });
+  assert.equal(ARCHIVE_IN_USE, 'Older days move to this browser’s database by themselves, so there is always room for new plans.');
+  assert.deepEqual(storageSafetyLine({ level: calm, archive: { status: 'unavailable', archived: 980 } }), { text: ARCHIVE_UNAVAILABLE, warning: true });
+  assert.match(ARCHIVE_UNAVAILABLE, /they can’t be opened, sync waits, and Export backup has your recent days only\. Reload the planner to try again\.$/);
+  assert.deepEqual(storageSafetyLine({ level: calm, archive: { status: 'lost', archived: 980 } }), { text: ARCHIVE_LOST, warning: true });
+  // 1.40 review M2: an import is no proof that nothing is missing, so the line never says it brings back “the rest”.
+  assert.match(ARCHIVE_LOST, /^Some of your older days can’t be found in this browser’s database now\. Nothing is taken for deleted: Sync now brings back what your synced copy has, and Import backup the days a backup holds\. Once you have brought back what you can, carry on without the others\.$/);
+  assert.doesNotMatch(ARCHIVE_LOST, /the rest/);
+  assert.match(ARCHIVE_SETTLE.message, /Your synced copy and your backups keep theirs: a sync or an import still brings them back\.$/);
+  const aside = storageSafetyLine({ level: calm, archive: { ...archive, displaced: 2 } });
+  assert.equal(aside.warning, true);
+  assert.match(aside.text, /Earlier versions of 2 days were kept aside when another tab saved over them without seeing them\. Below, Download keeps one in a file, and Restore puts it back \(the version there now is kept aside in its place\)\.$/);
+  assert.equal(keptAsideLine(1), 'An earlier version of a day was kept aside when another tab saved over it without seeing it. Below, Download keeps one in a file, and Restore puts it back (the version there now is kept aside in its place).');
+  assert.equal(storageSafetyLine({ failing: true, archive: { status: 'unavailable' } }).text.startsWith(FULL_TITLE), true, 'a refused change first');
   // No promise of a future version anywhere it speaks.
   const sync = storageAlertView({ syncMarkRefused: true, syncInUse: true });
-  const words = [full, warning, sync].flatMap(view => [view.pill, view.label, view.body]).concat(storageSafetyLine({ failing: true }).text).join(' ');
-  assert.doesNotMatch(words, /update|future|version|soon|coming|release/i);
+  const words = [full, warning, sync, saving].flatMap(view => [view.pill, view.label, view.body])
+    .concat([storageSafetyLine({ failing: true }).text, ARCHIVE_IN_USE, ARCHIVE_UNAVAILABLE, ARCHIVE_LOST, keptAsideLine(1), keptAsideLine(3)]).join(' ');
+  assert.doesNotMatch(words, /update|future|(new|next|later) version|soon|coming|release/i);
+});
+
+test('1.40 (review m6, m3): an earlier version kept aside, and a Reset not finished: calm words, with the way to Data on this device', () => {
+  const now = new Date(2026, 10, 12, 9);
+  assert.equal(asideDayLabel('2026-03-03', { locale: 'en-GB', now }), 'Tue 3 March');
+  assert.equal(asideDayLabel('2024-03-05', { locale: 'en-GB', now }), 'Tue, 5 March 2024', 'another year: said');
+  assert.equal(asideTitle('2026-03-03', { locale: 'en-GB', now }), 'An earlier version of Tue 3 March was kept aside.');
+  assert.equal(ASIDE_LEAD, 'Review it in How it works → Data on this device.');
+  const aside = storageAlertView({ aside: { day: '2026-03-03', at: '2026-11-12T08:00:00.000Z' }, locale: 'en-GB', now });
+  assert.deepEqual([aside.kind, aside.pill, aside.action, aside.label], ['aside', 'Earlier version kept', 'data', 'An earlier version of Tue 3 March was kept aside. Review it in How it works → Data on this device.']);
+  assert.equal(storageAlertView({ failing: true, aside: { day: '2026-03-03', at: 'x' } }).kind, 'full', 'a refused change first');
+  assert.equal(storageAlertView({ aside: { day: '2026-03-03', at: 'x' }, level: storageLevel(Math.ceil(SAFARI_BUDGET_CHARS * 0.86)) }).kind, 'aside', 'before the 80% warning');
+  const reset = storageAlertView({ resetLeft: true, aside: { day: '2026-03-03', at: 'x' } });
+  assert.deepEqual([reset.kind, reset.pill, reset.title, reset.lead], ['reset', 'Reset not finished', RESET_LEFT_TITLE, RESET_LEFT_LEAD]);
+  assert.equal(RESET_LEFT_TITLE, 'Your older days are still in this browser’s database.');
+  assert.equal(RESET_LEFT_LEAD, 'Reset couldn’t remove them yet. The planner tries again each time it opens.');
+  assert.deepEqual(storageSafetyLine({ resetLeft: true }).warning, true);
+  assert.match(storageSafetyLine({ resetLeft: true }).text, /^Your older days are still in this browser’s database\. Reset couldn’t remove them yet\./);
+  const css = read('styles/sync.css');
+  assert.match(css, /\.storage-alert\[data-kind="aside"\],\n\.storage-popover\[data-kind="aside"\],\n\.storage-alert\[data-kind="reset"\],\n\.storage-popover\[data-kind="reset"\] \{ --sync-wait: var\(--muted\); --sync-wait-ink: var\(--muted\); \}/, 'neutral, never the danger colour');
 });
 
 function alertHarness({ failing = false, level = null, today = new Date(2026, 10, 11, 9) } = {}) {
@@ -236,11 +281,11 @@ function alertHarness({ failing = false, level = null, today = new Date(2026, 10
   const live = doc.make('[data-storage-alert-live]');
   doc.make('[data-search-open]', { tag: 'button' });
   const health = { failing, syncMarkRefused: false };
-  const state = { level, now: today, sync: false, unavailable: false };
+  const state = { level, now: today, sync: false, unavailable: false, saving: false, resetLeft: false, aside: null };
   const storage = new QuotaStorage();
   const calls = [];
   const stack = { open() {}, closed() {} };
-  const alert = createStorageAlert({ health, level: () => state.level, syncInUse: () => state.sync, unavailable: () => state.unavailable, exportBackup: () => calls.push('export'), openData: () => calls.push('data'), doc, win: null, storage, now: () => state.now, layers: stack });
+  const alert = createStorageAlert({ health, level: () => state.level, saving: () => state.saving, syncInUse: () => state.sync, unavailable: () => state.unavailable, resetLeft: () => state.resetLeft, aside: () => state.aside, exportBackup: () => calls.push('export'), openData: () => calls.push('data'), doc, win: null, storage, now: () => state.now, layers: stack });
   const popover = () => doc.body.children.find(child => child.className.includes('storage-popover')) || null;
   return { doc, trigger, text, live, health, state, storage, calls, alert, popover };
 }
@@ -313,24 +358,65 @@ test('the 80% warning: in the header once a day, until it is opened; again the n
   assert.equal(h.trigger.hidden, true, 'below 80%: nothing');
 });
 
+test('1.40 (review m6): an earlier version kept aside is said once in the header, unannounced, until it is opened; a newer one, again', async () => {
+  const h = alertHarness();
+  h.state.aside = { day: '2026-03-03', at: '2026-11-11T08:00:00.000Z' };
+  h.alert.render();
+  assert.deepEqual([h.trigger.hidden, h.trigger.dataset.kind, h.text.textContent], [false, 'aside', 'Earlier version kept']);
+  assert.match(h.trigger.dataset.tooltip, /^An earlier version of .+ was kept aside\. Review it in How it works → Data on this device\.$/);
+  assert.equal(h.live.textContent, '', 'calm: not announced');
+  await h.trigger.click();
+  assert.equal(h.storage.getItem(ASIDE_SEEN_KEY), '2026-11-11T08:00:00.000Z', 'seen');
+  assert.doesNotMatch(h.popover().innerHTML, /data-storage-alert-action="export"/, 'one way on: to where it can be reviewed');
+  assert.match(h.popover().innerHTML, /<button class="primary-button" type="button" data-storage-alert-action="data"><span>Data on this device<\/span><\/button>/);
+  assert.equal(h.trigger.hidden, false, 'it stays while its popover is open');
+  await h.popover().dispatch('click', { target: h.popover().querySelector('.primary-button') });
+  assert.deepEqual(h.calls, ['data']);
+  assert.equal(h.trigger.hidden, true, 'then it goes');
+  h.alert.render();
+  assert.equal(h.trigger.hidden, true, 'once');
+  h.state.aside = { day: '2026-03-04', at: '2026-11-11T09:00:00.000Z' };
+  h.alert.render();
+  assert.equal(h.trigger.hidden, false, 'a newer one is said too');
+  // Reset not finished: said while it lasts.
+  h.state.resetLeft = true;
+  h.alert.render();
+  assert.equal(h.trigger.dataset.kind, 'reset');
+  h.state.resetLeft = false;
+  h.state.aside = null;
+  h.alert.render();
+  assert.equal(h.trigger.hidden, true);
+  const app = read('app.js');
+  assert.match(app, /resetLeft: \(\) => store\.databaseLeft\(\), aside: \(\) => store\.lastAside\(\),/);
+  assert.match(app, /onChange: \(\) => renderStorageState\(\),/, 'drawn again as the store changes (a copy kept aside, a Reset)');
+  assert.match(read('legal/cookies/index.html'), /<code>daily-planner-ui:aside-seen<\/code>/);
+});
+
+test('1.40: older days missing: Data on this device offers to carry on without them, after a confirmation', () => {
+  const app = read('app.js');
+  assert.match(app, /if \(settle\) settle\.hidden = store\.status\(\) !== 'lost';/);
+  assert.match(app, /qs\('\[data-archive-settle\]'\)\?\.addEventListener\('click', \(\) => requestConfirmation\(\{ eyebrow: 'Older days', \.\.\.ARCHIVE_SETTLE, confirmLabel: 'Carry on', action: async \(\) => \{ await store\.settle\(\); updateStorageUsage\(\); \} \}\)\);/);
+  assert.match(read('index.html'), /<button class="text-button storage-settle" type="button" data-archive-settle hidden>Carry on without them<\/button>/);
+});
+
 test('the planner wires it: every write reported, Data on this device shows the real state and how full storage is', () => {
   const app = read('app.js');
   assert.match(app, /onWrite: result => \{ if \(result\.ok \|\| !bulkWrites\) saveHealth\.note\(result\); if \(result\.ok && result\.tracked\) retryRefused\(\); \}/);
   assert.match(app, /const marked = syncLedger\.recordMutation\(mutation\);\n\s*if \(marked !== null\) saveHealth\.note\(\{ key: LEDGER_KEY, ok: marked \}\);/);
   assert.match(app, /function load\(\) \{\n[^\n]*\n\s*saveHealth\.reloaded\(\);/);
-  assert.match(app, /storageSafetyLine\(\{ failing: saveHealth\.failing, syncMarkRefused: saveHealth\.syncMarkRefused, syncInUse: syncInUse\(\), available: !unavailable, level: storageNow \}\)/);
+  assert.match(app, /storageSafetyLine\(\{ failing: saveHealth\.failing, syncMarkRefused: saveHealth\.syncMarkRefused, syncInUse: syncInUse\(\), available: !unavailable, level: storageNow, archive: store\.stats\(\), resetLeft: store\.databaseLeft\(\) \}\)/);
   assert.match(app, /const savingUnavailable = \(\) => storageBlocked \|\| \(!localSavingAvailable && !saveHealth\.saved\);/);
   assert.match(app, /meter\.hidden = unavailable \|\| !storageNow;/, 'no meter for blocked storage');
-  assert.match(app, /unavailable: savingUnavailable, exportBackup: exportPlannerBackup, openData: openStorageCard/);
+  assert.match(app, /unavailable: savingUnavailable, resetLeft: \(\) => store\.databaseLeft\(\), aside: \(\) => store\.lastAside\(\), exportBackup: exportPlannerBackup, openData: openStorageCard/);
   // Export backup: what waits is saved once more, and the day on screen and the settings in memory go in the file.
-  assert.match(app, /function exportPlannerBackup\(\) \{\n\s*flushPlannerForSync\(\);\n\s*const backup = buildPlannerBackup\(store, \{ live: \{ day: ymd\(\), state, settings \} \}\);/);
+  assert.match(app, /const exportPlannerBackup = afterHistory\(\(\) => \{\n\s*flushPlannerForSync\(\);\n\s*const backup = buildPlannerBackup\(store, \{ live: \{ day: ymd\(\), state, settings \} \}\);/);
   // Storage is measured as How it works opens, and for the header at most once a minute when idle: never per save.
   assert.doesNotMatch(app, /new Blob\(\[key/, 'no Blob per key');
   assert.match(app, /saveTimer = setTimeout\(\(\) => \{\n\s*try \{ store\.writeJSON\(storageKey\(\), state\); \} catch \(_\) \{\}\n\s*checkStorageSoon\(\);/);
   assert.match(app, /Math\.max\(0, storageCheckAt \+ 60000 - Date\.now\(\)\)/);
   assert.match(app, /window\.requestIdleCallback\(run/);
   const callers = [...app.matchAll(/updateStorageUsage\(\)/g)].length;
-  assert.equal(callers, 6, 'the definition, How it works (button, More, H, from an address) and Data on this device from the notice');
+  assert.equal(callers, 8, 'the definition, How it works (button, More, H, from an address), Data on this device from the notice, and after Restore and Carry on without them (1.40)');
   const html = read('index.html');
   assert.match(html, /<button class="sync-alert storage-alert" type="button" data-storage-alert hidden aria-haspopup="dialog" aria-expanded="false">/);
   assert.match(html, /<span class="sr-only" role="status" data-storage-alert-live><\/span>/);
@@ -365,4 +451,29 @@ test('typing doesn’t rewrite the sync ledger at each keystroke: a day marked m
   ledger.recordMutation({ type: 'remove', key: DAY });
   assert.equal(writes, before + 1);
   assert.ok(ledger.entry('day:2026-11-11').deletedAt);
+});
+
+test('a refused change making room (1.40): “Saving…”, neutral and unannounced, then gone once saved, or “Not saved” if it couldn’t be', () => {
+  const h = alertHarness();
+  h.health.failing = true;
+  h.state.saving = true;
+  h.alert.render();
+  assert.deepEqual([h.trigger.hidden, h.trigger.dataset.kind, h.text.textContent], [false, 'saving', 'Saving…']);
+  assert.equal(h.trigger.dataset.tooltip, 'Making room for your planner. Your latest change is being saved.');
+  assert.equal(h.live.textContent, '', 'a moment: not announced');
+  // Saved: nothing left, nothing said.
+  h.health.failing = false;
+  h.state.saving = false;
+  h.alert.render();
+  assert.deepEqual([h.trigger.hidden, h.live.textContent], [true, '']);
+  // Not saved after all: said once, as before.
+  h.health.failing = true;
+  h.state.saving = true;
+  h.alert.render();
+  h.state.saving = false;
+  h.alert.render();
+  assert.deepEqual([h.trigger.dataset.kind, h.text.textContent], ['full', 'Not saved']);
+  assert.equal(h.live.textContent, 'This browser is out of space for your planner. Your latest change wasn’t saved.');
+  const css = read('styles/sync.css');
+  assert.match(css, /\.storage-alert\[data-kind="saving"\],\n\.storage-popover\[data-kind="saving"\] \{ --sync-wait: var\(--muted\); --sync-wait-ink: var\(--muted\); \}/, 'neutral, never the danger colour');
 });

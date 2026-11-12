@@ -39,7 +39,8 @@ test('the four legal pages exist, and each footer links all four in order', asyn
     assert.match(html, /^<!doctype html>/i, file);
     // Last changed on 10 November 2026 (1.39: the planner is free and open source, under the MIT licence, and nothing
     // is sold; 1.38 that same day: Dropbox, the sealed copy, Google's access kept until it runs out); the cookies page
-    // again on 11 November 2026 (1.39.3: daily-planner-ui:storage-warned) and 12 November 2026 (1.39.4: daily-planner-ui:import-room).
+    // again on 11 November 2026 (1.39.3: daily-planner-ui:storage-warned) and 12 November 2026 (1.39.4: daily-planner-ui:import-room;
+    // 1.40: older days in IndexedDB daily-planner-archive, daily-planner-store:archive, daily-planner-store:lease, daily-planner-store:reset and daily-planner-ui:aside-seen).
     const dates = { 'legal/': ['2026-11-10', '10 November 2026'], 'legal/terms/': ['2026-11-10', '10 November 2026'], 'legal/privacy/': ['2026-11-10', '10 November 2026'], 'legal/cookies/': ['2026-11-12', '12 November 2026'] };
     const [iso, day] = dates[folder];
     const updated = new RegExp(`Last updated: <time datetime="${iso}">${day}</time>`);
@@ -506,7 +507,7 @@ test('the privacy policy: what the app still does, and nothing about payments, l
 
 test('the cookies page: no partner code, referral, currency or licence key any more', async () => {
   const html = await read('legal/cookies/index.html');
-  assert.ok(html.includes('<p class="lg-updated">Last updated: <time datetime="2026-11-12">12 November 2026</time></p>'), 'dated with its last change (1.39.4)');
+  assert.ok(html.includes('<p class="lg-updated">Last updated: <time datetime="2026-11-12">12 November 2026</time></p>'), 'dated with its last change (1.40: older days in this browser’s database)');
   assert.doesNotMatch(html, /creem_ref|daily-planner-ui:(?:ref|partner-hints|currency|plus-[a-z-]+)|data-partner-days/);
   assert.doesNotMatch(text(html), COMMERCIAL);
   for (const key of RETIRED_KEYS) assert.ok(!html.includes(`<code>${key}</code>`), `${key}: removed by the planner, no longer listed`);
@@ -545,12 +546,14 @@ test('the cookies page lists every storage key the code uses', async () => {
   const sources = ['app.js', 'index.html', ...(await walk('src')), ...(await walk('welcome')), ...(await walk('contact')), ...(await walk('admin'))].filter(file => /\.(?:js|mjs|html)$/.test(file) && file !== 'src/state/retired-keys.js');
   assert.ok(sources.includes('src/features/tour-model.js') && sources.includes('src/features/first-use-model.js') && sources.includes('src/features/pip-window.js'), 'nested modules are read');
   const keys = new Set();
-  for (const file of sources) for (const match of (await read(file)).matchAll(/['"`](daily-planner-(?:ui|sync):[a-z0-9-]+)['"`]/g)) keys.add(match[1]);
-  assert.ok(keys.size >= 21, `found ${keys.size} keys`);
+  for (const file of sources) for (const match of (await read(file)).matchAll(/['"`](daily-planner-(?:ui|sync|store):[a-z0-9-]+)['"`]/g)) keys.add(match[1]);
+  assert.ok(keys.size >= 23, `found ${keys.size} keys`);
+  for (const key of ['daily-planner-store:archive', 'daily-planner-store:lease', 'daily-planner-store:reset']) assert.ok(keys.has(key), `${key} found in the code (1.40)`);
   for (const key of ['daily-planner-ui:tips', 'daily-planner-ui:tour', 'daily-planner-ui:share', 'daily-planner-ui:pip-view', 'daily-planner-ui:pip-size', 'daily-planner-ui:pip-unresolved']) assert.ok(keys.has(key), `${key} found in the code`);
   for (const key of RETIRED_KEYS) assert.ok(!keys.has(key), `${key}: retired, never written any more`);
   for (const key of keys) assert.ok(cookies.includes(`<code>${key}</code>`), `${key} is listed`);
   assert.match(cookies, /<code>daily-planner-recovery<\/code>/, 'the recovery snapshots (IndexedDB)');
+  assert.match(cookies, /<th scope="row">Older days<\/th>[^\n]*IndexedDB <code>daily-planner-archive<\/code>/, 'the older days’ database (1.40)');
   assert.match(cookies, /<code>daily-planner:<\/code>/, 'the planner itself');
 });
 

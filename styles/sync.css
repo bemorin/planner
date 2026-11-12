@@ -360,6 +360,16 @@
    storage is 80% full or more, the danger colour once the browser refused a change. */
 .storage-alert[data-kind="full"],
 .storage-popover[data-kind="full"] { --sync-wait: var(--danger); --sync-wait-ink: var(--danger); }
+/* 1.40: “Saving…” while a refused change makes room (older days move to the database): neutral, a moment. */
+.storage-alert[data-kind="saving"],
+.storage-popover[data-kind="saving"] { --sync-wait: var(--muted); --sync-wait-ink: var(--muted); }
+.storage-alert[data-kind="saving"] { cursor: progress; }
+.storage-alert[data-kind="saving"] .sync-alert__dot { display: none; }
+/* 1.40: an earlier version of a day kept aside, and a Reset not finished: calm, neutral words, until opened. */
+.storage-alert[data-kind="aside"],
+.storage-popover[data-kind="aside"],
+.storage-alert[data-kind="reset"],
+.storage-popover[data-kind="reset"] { --sync-wait: var(--muted); --sync-wait-ink: var(--muted); }
 .storage-alert .sync-alert__icon svg { stroke-width: 1.7; }
 .storage-popover__icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, var(--sync-wait) 11%, var(--surface-strong)); color: var(--sync-wait-ink); }
 .storage-popover__icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }

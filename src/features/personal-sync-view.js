@@ -58,6 +58,16 @@ export function refusedNote(count) {
   return `This browser is out of space for your planner: ${n} ${n === 1 ? 'change' : 'changes'} from your other devices couldn’t be stored here. ${n === 1 ? 'It stays' : 'They stay'} in your synced copy, and the next sync fetches ${n === 1 ? 'it' : 'them'} again.`;
 }
 
+/**
+ * The card's line when sync waits for the older days (1.40, src/state/day-store.js): they are in this browser's
+ * database, which can't be read now ('unavailable') or is empty ('lost'). A day missing here while it still has a base
+ * would be taken for deleted, so sync doesn't run until they can be read.
+ */
+export function archiveSyncNote(status) {
+  if (status === 'lost') return 'Your older days are missing from this browser’s database, so sync waits instead of removing them from your synced copy. Import a backup to bring them back here.';
+  return 'Your older days are kept in this browser’s database, which isn’t answering right now, so sync waits. Reload the planner to try again.';
+}
+
 /** The planner's own time format (the schedule's: 14:58). */
 const plannerClock = date => clockTime(date.getHours() * 60 + date.getMinutes());
 

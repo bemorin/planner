@@ -1,11 +1,11 @@
-const CACHE = 'daily-planner-1.39.4';
+const CACHE = 'daily-planner-1.40.0';
 const CORE = [
   './', './index.html', './styles.css', './runtime-config.js', './app.js', './manifest.webmanifest',
   './favicon.svg', './favicon.ico', './apple-touch-icon.png', './pwa-192.png', './pwa-512.png',
   './src/config.js', './src/domain/note-lines.js', './src/domain/planning-calendar.js', './src/domain/schedule-time.js', './src/lib/dom.js', './src/lib/dates.js', './src/lib/text.js', './src/lib/utils.js',
-  './src/features/day-swipe.js', './src/features/fit.js', './src/features/horizon-model.js', './src/features/horizon-view.js', './src/features/pip-date-picker.js', './src/features/pip-styles.js', './src/features/pip-window.js', './src/features/print.js', './src/features/search.js', './src/features/unresolved.js', './src/features/journal.js', './src/features/storage-alert.js', './src/features/settings-schedule.js', './src/features/stats.js', './src/features/week-review.js', './src/features/week.js', './src/features/workspace.js', './src/features/personal-sync.js', './src/features/personal-sync-view.js', './src/features/sync-status.js',
+  './src/features/day-swipe.js', './src/features/fit.js', './src/features/horizon-model.js', './src/features/horizon-view.js', './src/features/pip-date-picker.js', './src/features/pip-styles.js', './src/features/pip-window.js', './src/features/print.js', './src/features/search.js', './src/features/unresolved.js', './src/features/journal.js', './src/features/storage-alert.js', './src/features/archive-keeper.js', './src/features/storage-recovery.js', './src/features/settings-schedule.js', './src/features/stats.js', './src/features/week-review.js', './src/features/week.js', './src/features/workspace.js', './src/features/personal-sync.js', './src/features/personal-sync-view.js', './src/features/sync-status.js',
   './src/features/progress-model.js', './src/features/progress-view.js', './src/features/onboarding.js', './src/features/install.js', './src/features/sponsor-moment.js', './src/features/sync-guide.js', './src/features/feedback.js', './src/features/privacy.js', './src/features/category-manager.js', './src/features/year-print.js', './src/features/year-plan.js', './src/features/year-review.js', './src/features/quarter-review.js', './src/features/quarter-session.js', './src/features/quarter-print.js', './src/features/paint-palettes.js', './src/features/whats-new.js', './src/features/tour.js', './src/features/tour-model.js', './src/features/first-use.js', './src/features/first-use-model.js', './src/features/day-summary.js', './src/features/view-switch.js', './src/features/app-entrance.js', './src/features/opening-seal.js', './src/first-visit.js', './src/features/help-link.js', './src/features/back-button.js', './src/features/week-agenda.js', './src/features/share-image.js', './src/features/share-dialog.js', './src/features/insights.js', './src/features/insights-model.js', './src/features/insights-view.js', './src/lib/planner-api.js',
-  './src/state/local-store.js', './src/state/browser-storage.js', './src/state/day-state.js', './src/state/settings-state.js', './src/state/planner-backup.js', './src/state/saved-days.js', './src/state/day-move.js', './src/state/retired-keys.js', './src/state/storage-health.js', './src/sync/cloud.js', './src/sync/document.js', './src/sync/dropbox.js', './src/sync/engine.js', './src/sync/google-drive.js', './src/sync/hash.js', './src/sync/key-store.js', './src/sync/ledger.js', './src/sync/merge.js', './src/sync/protection.js', './src/sync/records.js', './src/sync/recovery-store.js', './src/sync/scheduler.js', './src/sync/seal.js', './src/ui/calendar-popover.js', './src/ui/dialog-focus.js', './src/ui/back-stack.js', './src/ui/listbox.js', './src/ui/popover-trigger.js', './src/ui/motion.js', './src/ui/theme.js', './src/ui/tooltip.js', './legal/legal-details.js', './src/vendor/motion.js'
+  './src/state/local-store.js', './src/state/day-store.js', './src/state/day-archive.js', './src/state/day-placement.js', './src/state/browser-storage.js', './src/state/day-state.js', './src/state/settings-state.js', './src/state/planner-backup.js', './src/state/saved-days.js', './src/state/day-move.js', './src/state/retired-keys.js', './src/state/storage-health.js', './src/sync/cloud.js', './src/sync/document.js', './src/sync/dropbox.js', './src/sync/engine.js', './src/sync/google-drive.js', './src/sync/hash.js', './src/sync/key-store.js', './src/sync/ledger.js', './src/sync/merge.js', './src/sync/protection.js', './src/sync/records.js', './src/sync/recovery-store.js', './src/sync/scheduler.js', './src/sync/seal.js', './src/ui/calendar-popover.js', './src/ui/dialog-focus.js', './src/ui/back-stack.js', './src/ui/listbox.js', './src/ui/popover-trigger.js', './src/ui/motion.js', './src/ui/theme.js', './src/ui/tooltip.js', './legal/legal-details.js', './src/vendor/motion.js'
 ];
 
 self.addEventListener('install', event => {
@@ -67,6 +67,23 @@ a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 `;
   return new Response(html, { status: 503, statusText: 'Offline', headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
 }
+
+// The roll call of planner windows (1.40, src/features/archive-keeper.js): how many windows show the planner's own
+// address, controlled or not, and this worker's version. A planner tab of 1.40 or later also holds the Web Lock
+// daily-planner:tab; more windows than holders means a tab of an older release is open, and older days wait to move.
+// A worker before 1.40 doesn't answer at all, and they wait too.
+const VERSION = CACHE.slice('daily-planner-'.length);
+self.addEventListener('message', event => {
+  if (event.data?.type !== 'planner-windows') return;
+  const port = event.ports?.[0];
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
+    const scope = self.registration.scope;
+    const count = windows.filter(client => { try { return opensPlanner(new URL(client.url), scope); } catch (_) { return false; } }).length;
+    const answer = { type: 'planner-windows', windows: count, version: VERSION };
+    if (port) port.postMessage(answer);
+    else event.source?.postMessage?.(answer);
+  }));
+});
 
 // Never touched: the API (feedback, waitlist, counts) and the owner dashboard.
 const UNTOUCHED = ['/api/', '/admin/'];

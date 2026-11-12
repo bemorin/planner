@@ -293,6 +293,12 @@ a { color: inherit; }
   overflow: hidden;
 }
 
+/* A day in view not loaded yet from this browser's database (1.40, src/features/archive-keeper.js): the view waits,
+   inert and faded, with a line saying why. */
+.workspace[inert] { opacity: .55; transition: opacity .2s ease; }
+.day-opening { position: fixed; z-index: 30; top: 84px; left: 50%; width: max-content; max-width: calc(100vw - 32px); margin: 0; padding: 8px 14px; transform: translateX(-50%); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-strong); color: var(--muted); font-size: .86rem; font-weight: 600; line-height: 1.4; text-align: center; box-shadow: 0 6px 24px rgba(25, 22, 17, .1); }
+.day-opening[hidden] { display: none; }
+
 .pane-scroll {
   min-height: 0;
   overflow-y: auto;
@@ -2651,6 +2657,21 @@ h3,
 .storage-safety { margin-top: .55rem; padding: .5rem .55rem; border-radius: 7px; background: color-mix(in srgb, var(--soft) 70%, transparent); font-size: .66rem; line-height: 1.45; }
 
 .storage-safety.is-warning { color: var(--danger); background: color-mix(in srgb, var(--danger) 6%, var(--surface)); }
+
+/* What this browser keeps just in case (1.40, src/features/storage-recovery.js): one row each, its Download (and, for an
+   earlier version kept aside, Restore) at the right. */
+.storage-settle { margin-top: .35rem; }
+.storage-recovery { margin-top: .6rem; }
+.storage-recovery h4 { margin: 0 0 .3rem; color: var(--muted); font-size: .64rem; font-weight: 650; letter-spacing: .02em; }
+.storage-recovery__note { margin: 0 0 .35rem; color: var(--ink); font-size: .64rem; line-height: 1.4; }
+.storage-recovery__list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.storage-recovery__list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 0; border-top: 1px solid var(--line); font-size: .66rem; line-height: 1.35; }
+.storage-recovery__list li:first-child { border-top: 0; }
+.storage-recovery__list span { display: grid; min-width: 0; }
+.storage-recovery__list strong { color: var(--ink); font-weight: 600; }
+.storage-recovery__list small { color: var(--muted); font-size: .62rem; }
+.storage-recovery__list .text-button { flex: 0 0 auto; min-height: 28px; padding: 4px 8px; font-size: .64rem; }
+.storage-recovery__list .storage-recovery__actions { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; }
 
 .import-actions { display: grid; grid-template-columns: 1fr 1fr; }
 

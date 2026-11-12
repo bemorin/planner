@@ -1,4 +1,5 @@
 import { esc } from '../lib/text.js';
+import { formatStorageBytes } from '../state/planner-backup.js';
 import { ymdKey } from '../lib/dates.js';
 import { backLayers } from '../ui/back-stack.js';
 import { keepTab } from '../ui/dialog-focus.js';
@@ -17,10 +18,19 @@ import { popoverEnter } from '../ui/motion.js';
  *   next day while storage stays that full.
  * - Storage blocked, or no room at all from the start (a private window): nothing here; the planner's startup
  *   dialog has said so.
+ * - 1.40: a refused change first makes room (older days move to this browser's database, src/features/archive-keeper.js):
+ *   “Saving…”, neutral, meanwhile (up to three seconds), then nothing once it is saved, or “Not saved” when even that
+ *   couldn't make room. Data on this device says when older days are kept in the database, and when they can't be read.
+ * - 1.40: an earlier version of a day kept aside (a tab that couldn't see the day saved over it): said once, calmly,
+ *   until the person opens it, with the way to it (Data on this device, where it can be downloaded or put back).
+ * - 1.40: a Reset that couldn't remove the older days from this browser's database yet (another tab holds it open):
+ *   said, until the next start removes them.
  */
 
 /** The day the person last opened the storage warning: one header alert a day. */
 export const WARNED_KEY = 'daily-planner-ui:storage-warned';
+/** When the latest earlier version kept aside that the person has opened was kept (1.40): each is said once. */
+export const ASIDE_SEEN_KEY = 'daily-planner-ui:aside-seen';
 const COMPACT_QUERY = '(max-width: 1080px)';
 const PHONE_QUERY = '(max-width: 560px)';
 const GUTTER = 12;
@@ -32,18 +42,52 @@ export const SYNC_LEAD = 'Your latest change is saved here, but may not reach yo
 export const warnSentence = percent => `Storage on this device is about ${percent}% full.`;
 export const WARN_LEAD = 'Export a backup to keep everything safe.';
 const NOTHING_LOST = 'Export a backup so nothing is lost.';
-const NO_ROOM = 'Older days can’t be moved out of this browser yet';
+/** 1.40: a refused change that moving older days couldn't make room for. */
+export const NO_MORE_ROOM = 'This browser can’t make more room for your planner here. Export a backup now, so nothing is lost.';
+export const SAVING_TITLE = 'Making room for your planner.';
+export const SAVING_LEAD = 'Your latest change is being saved.';
+const SAVING_BODY = 'Older days are moving to this browser’s own database. It takes a moment.';
+const LIMITED = 'Your planner is kept in this browser, which gives each site a limited space, and it can’t make more room here.';
 const AVAILABLE = 'Local saving is available. Private windows or clearing site data may still remove it — export a backup if you want to keep your planner history.';
+/** Data on this device, once older days are kept in this browser's database (1.40). */
+export const ARCHIVE_IN_USE = 'Older days move to this browser’s database by themselves, so there is always room for new plans.';
+export const ARCHIVE_UNAVAILABLE = 'Your older days are kept in this browser’s database, which isn’t answering right now: until it does, they can’t be opened, sync waits, and Export backup has your recent days only. Reload the planner to try again.';
+export const ARCHIVE_LOST = 'Some of your older days can’t be found in this browser’s database now. Nothing is taken for deleted: Sync now brings back what your synced copy has, and Import backup the days a backup holds. Once you have brought back what you can, carry on without the others.';
+/** Data on this device's “Carry on without them” (1.40), once older days are missing: its confirmation. */
+export const ARCHIVE_SETTLE = Object.freeze({
+  title: 'Carry on without the missing older days?',
+  message: 'The older days this browser’s database no longer has are let go on this device, so it can make room for new plans again. Your synced copy and your backups keep theirs: a sync or an import still brings them back.'
+});
+export const keptAsideLine = count => `${count === 1 ? 'An earlier version of a day was' : `Earlier versions of ${count.toLocaleString('en')} days were`} kept aside when another tab saved over ${count === 1 ? 'it' : 'them'} without seeing ${count === 1 ? 'it' : 'them'}. Below, Download keeps one in a file, and Restore puts it back (the version there now is kept aside in its place).`;
+/** The day of an earlier version kept aside, as the header names it: “Tue, March 3”, with the year when it isn't this one. */
+export function asideDayLabel(day, { locale, now = new Date() } = {}) {
+  const date = new Date(`${day}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return 'a day';
+  return date.toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'long', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+}
+export const asideTitle = (day, options) => `An earlier version of ${asideDayLabel(day, options)} was kept aside.`;
+export const ASIDE_LEAD = 'Review it in How it works → Data on this device.';
+const ASIDE_BODY = 'Another tab saved over this day without seeing it, so the version that was there is kept on this device. You can download it, or put it back.';
+export const RESET_LEFT_TITLE = 'Your older days are still in this browser’s database.';
+export const RESET_LEFT_LEAD = 'Reset couldn’t remove them yet. The planner tries again each time it opens.';
+const RESET_LEFT_BODY = 'They are never opened again. Close the planner’s other tabs, then reload it, to finish now.';
 const UNAVAILABLE = 'Local saving is unavailable in this browser context. Export anything important before leaving this page.';
 
 /**
- * What the header says: null, or { kind: 'full' | 'sync' | 'warn', pill, label (the full sentence), title, lead,
- * body }. `failing`: a change was refused and none has landed since; `syncMarkRefused`: only the sync mark was;
- * `syncInUse`: Personal sync is connected; `level`: storageLevel(); `warnedToday`: today's warning was opened;
- * `unavailable`: saving never worked in this browser (blocked, or no room at all), which the startup dialog says.
+ * What the header says: null, or { kind: 'saving' | 'full' | 'sync' | 'reset' | 'aside' | 'warn', pill, label (the
+ * full sentence), title, lead, body, action ('data': the popover's one button is Data on this device) }. `failing`: a
+ * change was refused and none has landed since; `syncMarkRefused`: only the sync mark was; `syncInUse`: Personal sync
+ * is connected; `level`: storageLevel(); `warnedToday`: today's warning was opened; `unavailable`: saving never worked
+ * in this browser (blocked, or no room at all), which the startup dialog says. 1.40: `saving`, a refused change making
+ * room; `resetLeft`, a Reset that left the database for the next start; `aside`, the latest earlier version kept
+ * aside ({ day, at }) not opened yet.
  */
-export function storageAlertView({ failing = false, syncMarkRefused = false, syncInUse = false, level = null, warnedToday = false, unavailable = false } = {}) {
+export function storageAlertView({ failing = false, syncMarkRefused = false, syncInUse = false, level = null, warnedToday = false, unavailable = false, saving = false, resetLeft = false, aside = null, locale, now = new Date() } = {}) {
   if (unavailable) return null;
+  // 1.40: a refused change makes room first; meanwhile, neutral words, never the danger colour.
+  if (saving && (failing || syncMarkRefused)) {
+    return { kind: 'saving', pill: 'Saving…', label: `${SAVING_TITLE} ${SAVING_LEAD}`, title: SAVING_TITLE, lead: SAVING_LEAD, body: SAVING_BODY };
+  }
   if (failing) {
     return {
       kind: 'full',
@@ -51,7 +95,7 @@ export function storageAlertView({ failing = false, syncMarkRefused = false, syn
       label: `${FULL_TITLE} ${FULL_LEAD}`,
       title: FULL_TITLE,
       lead: FULL_LEAD,
-      body: `${NOTHING_LOST} ${NO_ROOM}; Data on this device has the only way to make room.`
+      body: NO_MORE_ROOM
     };
   }
   if (syncMarkRefused && syncInUse) {
@@ -64,6 +108,11 @@ export function storageAlertView({ failing = false, syncMarkRefused = false, syn
       body: NOTHING_LOST
     };
   }
+  if (resetLeft) return { kind: 'reset', pill: 'Reset not finished', label: `${RESET_LEFT_TITLE} ${RESET_LEFT_LEAD}`, title: RESET_LEFT_TITLE, lead: RESET_LEFT_LEAD, body: RESET_LEFT_BODY, action: 'data' };
+  if (aside?.day) {
+    const title = asideTitle(aside.day, { locale, now });
+    return { kind: 'aside', pill: 'Earlier version kept', label: `${title} ${ASIDE_LEAD}`, title, lead: ASIDE_LEAD, body: ASIDE_BODY, action: 'data', at: aside.at || '' };
+  }
   if (level?.warn && !warnedToday) {
     return {
       kind: 'warn',
@@ -71,7 +120,7 @@ export function storageAlertView({ failing = false, syncMarkRefused = false, syn
       label: `${warnSentence(level.percent)} ${WARN_LEAD}`,
       title: warnSentence(level.percent),
       lead: WARN_LEAD,
-      body: `Your planner is kept in this browser, which gives each site a limited space. ${NO_ROOM}.`
+      body: LIMITED
     };
   }
   return null;
@@ -79,34 +128,58 @@ export function storageAlertView({ failing = false, syncMarkRefused = false, syn
 
 /**
  * How it works → Data on this device, the line under its text: { text, warning }. The real state: saving
- * unavailable from the start (blocked, or no room at all) until a change lands, a refused change (with the only
- * way to make room), a refused sync mark (for people who use sync), the warning from 80%, else saving available.
+ * unavailable from the start (blocked, or no room at all) until a change lands, a refused change, a refused sync
+ * mark (for people who use sync), the warning from 80%, else saving available. 1.40, `archive` (the day store's
+ * stats()): older days that can't be read ('unavailable', 'lost') come first after those; older days kept in the
+ * database are said with saving available; earlier copies kept aside are said after it all.
  */
-export function storageSafetyLine({ failing = false, syncMarkRefused = false, syncInUse = false, available = true, level = null } = {}) {
+export function storageSafetyLine({ failing = false, syncMarkRefused = false, syncInUse = false, available = true, level = null, archive = null, resetLeft = false } = {}) {
+  const aside = archive?.displaced ? ` ${keptAsideLine(archive.displaced)}` : '';
   if (!available) return { text: UNAVAILABLE, warning: true };
-  if (failing) return { text: `${FULL_TITLE} ${FULL_LEAD} ${NOTHING_LOST} ${NO_ROOM}: the only way to make room is Reset local data, which deletes everything on this device.`, warning: true };
-  if (syncMarkRefused && syncInUse) return { text: `${FULL_TITLE} ${SYNC_LEAD} ${NOTHING_LOST}`, warning: true };
-  if (level?.warn) return { text: `${warnSentence(level.percent)} ${WARN_LEAD}`, warning: true };
-  return { text: AVAILABLE, warning: false };
+  if (failing) return { text: `${FULL_TITLE} ${FULL_LEAD} ${NO_MORE_ROOM}${aside}`, warning: true };
+  if (syncMarkRefused && syncInUse) return { text: `${FULL_TITLE} ${SYNC_LEAD} ${NOTHING_LOST}${aside}`, warning: true };
+  if (resetLeft) return { text: `${RESET_LEFT_TITLE} ${RESET_LEFT_LEAD} ${RESET_LEFT_BODY}`, warning: true };
+  if (archive?.status === 'unavailable') return { text: `${ARCHIVE_UNAVAILABLE}${aside}`, warning: true };
+  if (archive?.status === 'lost') return { text: `${ARCHIVE_LOST}${aside}`, warning: true };
+  if (level?.warn) return { text: `${warnSentence(level.percent)} ${WARN_LEAD}${aside}`, warning: true };
+  if (archive?.archived) return { text: `${ARCHIVE_IN_USE} ${AVAILABLE}${aside}`, warning: !!aside };
+  return { text: `${AVAILABLE}${aside}`, warning: !!aside };
+}
+
+const count = n => Number(n || 0).toLocaleString('en');
+
+/**
+ * Data on this device, its figures (1.40): the planner's own data in localStorage, then every saved day, both homes,
+ * and how many of them are older days kept in this browser's database (src/state/day-store.js stats()).
+ */
+export function storageUsageText({ bytes = 0, days = 0, archived = 0 } = {}) {
+  const line = `${formatStorageBytes(bytes)} · ${count(days)} saved ${days === 1 ? 'day' : 'days'}`;
+  return archived ? `${line} · ${count(archived)} older ${archived === 1 ? 'one' : 'ones'} kept in this browser’s database` : line;
 }
 
 const ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="2.8"/><path d="M5 6v12c0 1.55 3.13 2.8 7 2.8s7-1.25 7-2.8V6"/><path d="M5 12c0 1.55 3.13 2.8 7 2.8s7-1.25 7-2.8"/></svg>';
 
 /** The popover's content (its title and lead name and describe the dialog). */
 export function storagePopoverMarkup(view) {
+  const actions = view.action === 'data'
+    ? '<button class="primary-button" type="button" data-storage-alert-action="data"><span>Data on this device</span></button>'
+    : '<button class="text-button" type="button" data-storage-alert-action="data">Data on this device</button><button class="primary-button" type="button" data-storage-alert-action="export"><span>Export backup</span></button>';
   return `<div class="sync-popover__head">
       <span class="storage-popover__icon" aria-hidden="true">${ICON}</span>
       <div><strong id="storage-alert-title">${esc(view.title)}</strong><span id="storage-alert-lead">${esc(view.lead)}</span></div>
     </div>
     <p id="storage-alert-body">${esc(view.body)}</p>
-    <div class="sync-popover__actions"><button class="text-button" type="button" data-storage-alert-action="data">Data on this device</button><button class="primary-button" type="button" data-storage-alert-action="export"><span>Export backup</span></button></div>`;
+    <div class="sync-popover__actions">${actions}</div>`;
 }
 
 export function createStorageAlert({
   health,
   level = () => null,
+  saving = () => false,
   syncInUse = () => false,
   unavailable = () => false,
+  resetLeft = () => false,
+  aside = () => null,
   exportBackup = () => {},
   openData = () => {},
   onLayout = () => {},
@@ -141,6 +214,22 @@ export function createStorageAlert({
     try { storage?.setItem(WARNED_KEY, warnedOn); } catch (_) {}
   };
   const focusedInside = () => !!popover && popover.contains(doc.activeElement);
+  // The latest earlier version kept aside, until it is opened (kept here too, as the warning's day is).
+  let asideSeen = '';
+  const seenAside = () => {
+    let stored = '';
+    try { stored = storage?.getItem(ASIDE_SEEN_KEY) || ''; } catch (_) {}
+    return stored > asideSeen ? stored : asideSeen;
+  };
+  const unseenAside = () => {
+    let last = null;
+    try { last = aside(); } catch (_) {}
+    return last?.day && String(last.at || '') > seenAside() ? last : null;
+  };
+  const markAsideSeen = at => {
+    asideSeen = at;
+    try { storage?.setItem(ASIDE_SEEN_KEY, at); } catch (_) {}
+  };
 
   function place() {
     if (!popover) return;
@@ -186,6 +275,7 @@ export function createStorageAlert({
     if (popover || !view) return;
     // The warning has been seen: once a day.
     if (view.kind === 'warn') markWarned();
+    if (view.kind === 'aside') markAsideSeen(view.at);
     popover = doc.createElement('div');
     popover.className = 'app-popover sync-popover storage-popover';
     popover.id = 'storage-alert-popover';
@@ -226,16 +316,19 @@ export function createStorageAlert({
 
   /** Drawn from the save health and the storage level as they are now. */
   function render() {
-    const next = storageAlertView({ failing: health.failing, syncMarkRefused: health.syncMarkRefused, syncInUse: syncInUse(), level: level(), warnedToday: warnedToday(), unavailable: unavailable() });
-    // An open warning stays put until it is closed (it was marked seen as it opened).
-    if (popover && next?.kind !== view?.kind && !(view?.kind === 'warn' && !next)) close({ focus: focusedInside() });
+    const next = storageAlertView({ failing: health.failing, syncMarkRefused: health.syncMarkRefused, syncInUse: syncInUse(), level: level(), warnedToday: warnedToday(), unavailable: unavailable(), saving: saving(), resetLeft: !!resetLeft(), aside: unseenAside(), now: now() });
+    // An open warning, or earlier version kept aside, stays put until it is closed (it was marked seen as it opened),
+    // unless something more pressing comes.
+    const seen = kind => kind === 'warn' || kind === 'aside';
+    if (popover && next?.kind !== view?.kind && !(seen(view?.kind) && (!next || seen(next.kind)))) close({ focus: focusedInside() });
     if (!popover) view = next;
-    // A refused change (or sync mark) is told once as it starts, and once as it ends: never at each keystroke.
-    const urgent = view && view.kind !== 'warn' ? view.kind : '';
+    // A refused change (or sync mark) is told once as it starts, and once as it ends: never at each keystroke. Making
+    // room (“Saving…”, a moment) is said only if it doesn't end saved; the calm notices, never.
+    const urgent = view && (view.kind === 'full' || view.kind === 'sync') ? view.kind : '';
     if (live && urgent !== told) live.textContent = urgent ? view.label : told ? 'Your changes are being saved again.' : '';
     told = urgent;
     const hadFocus = doc.activeElement === trigger;
-    const key = `${view?.kind || ''}|${view?.pill || ''}|${compact?.matches ? 'c' : 'w'}`;
+    const key = `${view?.kind || ''}|${view?.pill || ''}|${view?.label || ''}|${compact?.matches ? 'c' : 'w'}`;
     if (key === shown) return;
     const wasHidden = trigger.hidden;
     shown = key;

@@ -54,6 +54,8 @@ import { createJournal } from './src/features/journal.js';
 import { createSaveHealth, LEDGER_KEY, measureStorage, storageBudget, storageChars, storageLevel } from './src/state/storage-health.js';
 import { ARCHIVE_SETTLE, FULL_TITLE, createStorageAlert, storageSafetyLine } from './src/features/storage-alert.js';
 import { createStorageRecovery } from './src/features/storage-recovery.js';
+import { refreshResetDialog, resetLocalData } from './src/features/reset-local.js';
+import { firstBlock } from './src/state/first-block.js';
 import { candidateTriaged, candidatesForSavedDay, needsAttention } from './src/features/unresolved.js';
 import { createWeekReviewFeature } from './src/features/week-review.js';
 import { createWorkspaceFeature } from './src/features/workspace.js';
@@ -1612,24 +1614,8 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     const targetKey = ymd(targetDate);
     const targetState = targetKey === ymd(date) ? state : loadStateForDate(targetDate);
     if (!(targetState.blocks || []).length) {
-      targetState.blocks.push({
-        id: uid('block'),
-        title: 'Click on me to edit your first block',
-        link: '',
-        notes: '',
-        start: startMinutes,
-        duration: 60,
-        startDate: targetKey,
-        endDate: addDaysKey(targetKey, Math.floor((startMinutes + 60) / (24 * 60))),
-        categoryId: '',
-        linkedType: '',
-        linkedId: '',
-        done: false,
-        completedAt: '',
-        actualDuration: null,
-        carriedCount: 0,
-        originDay: ''
-      });
+      // The sample, as src/state/first-block.js defines it: a first connection takes it, untouched, for nothing (1.40.1).
+      targetState.blocks.push(firstBlock({ day: targetKey, startMinutes }));
       persistStateForDate(targetDate, targetState);
     }
     date = targetDate;
@@ -2338,11 +2324,14 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   }
 
   async function resetPlannerData() {
+    // Never while another planner tab is open (any release): it could bring everything back. The dialog says so.
+    if (!(await resetDialog())) return;
     clearTimeout(saveTimer);
     clearTimeout(settingsTimer);
-    // Both homes (1.40): every day removed with its tombstone, then this browser's database cleared.
-    await store.clearAll('daily-planner:', { bulk: inBulk }); archiveKeeper.forget();
-    store.withoutMutationTracking(() => { store.remove('daily-planner-ui:trophies-seen'); store.remove(IMPORT_ROOM_KEY); });
+    // This browser only (1.40.1, src/features/reset-local.js): Personal sync turned off here, every day in both homes,
+    // the ledger and the recovery snapshots gone, and no tombstone: the copy and the other devices keep everything.
+    const reset = await resetLocalData({ store, ledger: syncLedger, sync: personalSyncFeature, keys: ['daily-planner-ui:trophies-seen', IMPORT_ROOM_KEY], forgetSnapshots: () => archiveKeeper.forget(), otherTabs: () => archiveKeeper.otherTabsOpen() });
+    if (reset.refused) { resetDialog(); return; }
     progressCache.model = null;
     reloadSettings();
     date = atNoon(new Date());
@@ -3597,7 +3586,9 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   });
   qs('[data-stats-help]').addEventListener('click', e => openInfoPopover(e.currentTarget, '<p><strong>Scheduled</strong> is the duration you planned. <strong>Elapsed schedule</strong> is the portion of those blocks whose clock time has passed. <strong>Over plan</strong> is estimated when you mark a scheduled block done on its scheduled day: the planner compares its planned duration with the time from the scheduled start to completion. It is not background activity tracking. The weekly chart compares planned time by category across the active planning days in the selected week.</p>'));
   qs('[data-help-open]').addEventListener('click', () => { updateStorageUsage(); openModal(qs('[data-help-modal]')); });
-  qs('[data-reset-open]').addEventListener('click', () => openModal(qs('[data-reset-modal]')));
+  // The Reset dialog: Personal sync's line, and Reset refused while another planner tab is open (src/features/reset-local.js).
+  const resetDialog = () => refreshResetDialog({ modal: qs('[data-reset-modal]'), sync: personalSyncFeature, otherTabs: () => archiveKeeper.otherTabsOpen() });
+  qs('[data-reset-open]').addEventListener('click', () => { resetDialog(); openModal(qs('[data-reset-modal]')); });
   qs('[data-reset-export]').addEventListener('click', exportPlannerBackup);
   qs('[data-reset-confirm]').addEventListener('click', resetPlannerData);
   const blockNotesEditor = qs('[data-block-notes-editor]');

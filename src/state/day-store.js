@@ -82,6 +82,8 @@ export function createDayStore(storage = globalThis.localStorage, {
   let loading = null;
   let displacedCount = 0;
   let lastAside = null;
+  // Days Restore put back (day → the string restored): an older tab saving over one again is said again.
+  const restored = new Map();
   let orphansChecked = false;
   // IndexedDB work that follows a write (an archived copy dropped or kept aside): one after another, each alone.
   let queue = Promise.resolve();
@@ -260,9 +262,39 @@ export function createDayStore(storage = globalThis.localStorage, {
         return;
       }
       await recount(store, -1);
-      await store.keepAside([{ day, json, reason }], { drop: [day] });
-      displacedCount += 1;
-      lastAside = { day, at: new Date().toISOString() };
+      await keepOnce(store, { day, json, reason }, { drop: [day] });
+      tell();
+    });
+  }
+
+  /**
+   * Inside the lock: `entry` ({ day, json, reason }) kept aside, unless a copy of that very day and string is kept
+   * already (an older tab saving the same version again after a Restore): that one is said again instead (no longer
+   * marked restored, kept aside now), never kept twice. `drop`: days removed from the archive in the same step.
+   */
+  async function keepOnce(store, entry, { drop = [] } = {}) {
+    const list = await store.displaced();
+    const same = list.find(item => item.day === entry.day && item.json === entry.json);
+    if (!same) await store.keepAside([entry], { drop });
+    else {
+      if (drop.length) await store.remove(drop);
+      if (same.restoredAt) {
+        const { restoredAt: _restoredAt, ...again } = same;
+        await store.rewrite([{ ...again, displacedAt: new Date().toISOString() }]);
+      }
+    }
+    noteAside(await store.displaced());
+  }
+
+  /**
+   * A day put back by Restore, written over again blind by another tab (an older planner still open on it): its
+   * version is kept aside (or the copy restored said again), and the header tells the person once more.
+   */
+  function keptAgainLater(key, json) {
+    const day = dayOfKey(key);
+    later(async store => {
+      if (raw(key) === json) return;
+      await keepOnce(store, { day, json, reason: 'older-tab' });
       tell();
     });
   }
@@ -596,6 +628,12 @@ export function createDayStore(storage = globalThis.localStorage, {
     // A day another tab wrote, whose archived copy this tab holds: reconciled as at a start (an older tab's blank,
     // say, never shown here nor synced from here).
     for (const { key, value } of sets) if (memory.has(key) && raw(key) === value) reconcileKey(key, value, gone);
+    // A day Restore put back, written over blind (sharing none of its items) by another tab: said again (keptAgainLater()).
+    for (const { key, value, oldValue } of sets) {
+      const back = restored.get(dayOfKey(key));
+      if (!back || memory.has(key) || oldValue == null || oldValue === value) continue;
+      if ((oldValue === back || sharesItems(oldValue, back)) && !sharesItems(value, oldValue)) keptAgainLater(key, oldValue);
+    }
     // A day another tab removed: moved (its string archived), deleted (its tombstone), or an edit that tab's pass
     // removed before it could see it (it differs from what was archived): that edit is put back.
     const moved = removals.filter(({ key }) => current && dayOfKey(key) < current.before && raw(key) == null);
@@ -636,7 +674,7 @@ export function createDayStore(storage = globalThis.localStorage, {
     if (key != null && key !== MANIFEST_KEY) {
       if (!dayOfKey(key)) return;
       if (newValue == null && oldValue != null) removalsHeard.push({ key, oldValue });
-      else if (newValue != null) setsHeard.push({ key, value: newValue });
+      else if (newValue != null) setsHeard.push({ key, value: newValue, oldValue });
       else return;
     }
     if (hearScheduled) return;
@@ -962,33 +1000,36 @@ export function createDayStore(storage = globalThis.localStorage, {
   }
 
   /**
-   * Reset local data (1.40): every day in either home removed, each with the event local-store gives a removal (so
-   * the deletions sync), the older days this tab couldn't read included (those the ledger knows), then the manifest
-   * removed, then the archive's database emptied, or deleted, or left for the next start to delete (databaseLeft()):
-   * nothing archived is ever read again. Returns how many keys went.
+   * Reset local data (1.40.1: this browser only): every day in either home removed without a mutation (no tombstone,
+   * no change for sync: the copy and the other devices keep everything), then the manifest removed, then the archive's
+   * database emptied, or deleted, or left for the next start to delete (databaseLeft()): nothing archived is ever read
+   * again. RESET_KEY is written before anything goes, and cleared once the database is emptied: a tab closed half-way
+   * leaves it, so the next start finishes the Reset and nothing it removed is ever adopted back. The sync ledger is the
+   * caller's to clear (app.js, src/features/reset-local.js). Returns how many keys went.
    */
-  async function clearAll(prefix = 'daily-planner:', { bulk = fn => fn() } = {}) {
+  async function clearAll(prefix = 'daily-planner:') {
     await ready();
     const daysToo = keyOfDay('2000-01-01').startsWith(prefix);
     const count = await exclusive(async () => {
-      const unread = daysToo ? [...marks().live].map(keyOfDay) : [];
-      const removed = bulk(() => {
-        const matches = [...new Set([...keys(prefix), ...unread])];
-        if (daysToo) {
-          try { storage.removeItem(MANIFEST_KEY); } catch (_) {}
-          memory.clear();
-          seenGen = null;
-          status = 'none';
-        }
-        matches.forEach(key => local.remove(key));
-        return matches.length;
-      });
+      const matches = keys(prefix);
+      if (daysToo) {
+        try { storage.setItem(RESET_KEY, '1'); } catch (_) {}
+        try { storage.removeItem(MANIFEST_KEY); } catch (_) {}
+        // Storage full to its last character: the manifest's room is enough for the flag.
+        if (!resetPending()) { try { storage.setItem(RESET_KEY, '1'); } catch (_) {} }
+        memory.clear();
+        blanks.clear();
+        seenGen = null;
+        status = 'none';
+      }
+      local.withoutMutationTracking(() => matches.forEach(key => local.remove(key)));
       if (daysToo) {
         displacedCount = 0;
         lastAside = null;
+        restored.clear();
         await clearDatabase(archiveOf());
       }
-      return removed;
+      return matches.length;
     });
     tell();
     return count;
@@ -1069,6 +1110,8 @@ export function createDayStore(storage = globalThis.localStorage, {
     displacedCount = list.length;
     const news = list.find(entry => entry.reason !== 'restored-over' && !entry.restoredAt);
     lastAside = news ? { day: news.day, at: news.displacedAt } : null;
+    restored.clear();
+    for (const entry of list) if (entry.restoredAt && !restored.has(entry.day)) restored.set(entry.day, entry.json);
   }
 
   /**
@@ -1097,7 +1140,13 @@ export function createDayStore(storage = globalThis.localStorage, {
       const current = get(key);
       let keptIds = [];
       if (current != null && current !== entry.json) {
-        try { keptIds = (await store.keepAside([{ day: entry.day, json: current, reason: 'restored-over' }])) || []; } catch (_) { return false; }
+        // The version there now kept aside, unless that very version is kept already (Restore, the older tab saving
+        // again, Restore again): never twice.
+        let list = [];
+        try { list = await store.displaced(); } catch (_) { return false; }
+        if (!list.some(item => item.day === entry.day && item.json === current)) {
+          try { keptIds = (await store.keepAside([{ day: entry.day, json: current, reason: 'restored-over' }])) || []; } catch (_) { return false; }
+        }
       }
       trusted += 1;
       replacing += 1;

@@ -38,6 +38,13 @@ test('conflicts and a passphrase have their own words, and lead to Settings', ()
   const conflict = alertView({ ...idle, conflicts: 2 }, { now });
   assert.deepEqual([conflict.kind, conflict.pill, conflict.action, conflict.secondary], ['conflict', 'Sync needs a choice', 'settings', '']);
   assert.equal(conflict.lead, '2 items were edited on both devices.');
+  // 1.40.1: what conflicts, named, once the records are known.
+  assert.equal(alertView({ ...idle, conflicts: ['settings'] }, { now }).lead, 'Your settings differ between this device and your copy.');
+  assert.equal(alertView({ ...idle, conflicts: ['settings', 'day:2026-11-02', 'day:2026-11-03'] }, { now }).lead, 'Your settings and 2 days differ between this device and your copy.');
+  assert.equal(alertView({ ...idle, conflicts: ['settings', 'day:2026-11-02'] }, { now }).lead, 'Your settings and one day differ between this device and your copy.');
+  assert.equal(alertView({ ...idle, conflicts: ['day:2026-11-02'] }, { now }).lead, 'One day was edited on both devices.');
+  assert.equal(alertView({ ...idle, conflicts: ['day:2026-11-02', 'day:2026-11-03'] }, { now }).lead, '2 days were edited on both devices.');
+  assert.equal(alertView({ ...idle, conflicts: [] }, { now })?.kind === 'conflict', false, 'none: no conflict');
   const enter = alertView({ ...ended, need: 'enter' }, { now });
   assert.deepEqual([enter.kind, enter.pill, enter.title, enter.primary], ['passphrase', 'Passphrase needed', 'Sync is waiting for your passphrase', 'Enter passphrase'], 'a passphrase comes before anything else');
   assert.equal(alertView({ ...idle, need: 'changed' }, { now }).title, 'The passphrase was changed');

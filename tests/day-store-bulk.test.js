@@ -88,7 +88,7 @@ test('Export backup includes the archived days: the same days before and after a
   assert.equal(backupFileName('2026-11-11', 'lost'), 'daily-planner-backup-2026-11-11-recent-days.json');
 });
 
-test('Reset local data: both homes, a removal event for every day, the archive and the manifest gone, nothing back after a reload', async () => {
+test('Reset local data (1.40.1): both homes emptied with no removal event (nothing for sync), the archive and the manifest gone, nothing back after a reload', async () => {
   const browser = createBrowser();
   const a = browser.tab();
   await a.pass();
@@ -97,8 +97,8 @@ test('Reset local data: both homes, a removal event for every day, the archive a
   const count = await a.store.clearAll('daily-planner:');
   assert.equal(browser.archive.aside.length, 0, 'the earlier copies kept aside go too: every saved day, as the Reset dialog says');
   assert.equal(count, browser.days.length + 1, 'every day and the settings');
-  assert.equal(a.events.length, count, 'the same events local-store gives: each deletion syncs');
-  assert.ok(a.events.every(event => event.type === 'remove'));
+  assert.deepEqual(a.events, [], 'no mutation: Reset touches only this browser, never the copy');
+  assert.equal(a.ledger.deletedDays().size, 0, 'no tombstone');
   assert.equal(browser.base.getItem(MANIFEST_KEY), null);
   assert.equal(browser.archive.data.size, 0);
   assert.equal(a.store.status(), 'none');

@@ -7,6 +7,13 @@ const LEDGER_KEY = 'daily-planner-sync:ledger';
 const PROVIDER_PREFIX = 'daily-planner-sync:';
 const CLOUD_KEY = 'daily-planner-sync:cloud';
 const CLOUD_IDS = ['google', 'dropbox'];
+/**
+ * Reset local data's generation (1.40.1): a new value at each Reset. Once there is one, the ledger and each cloud's
+ * state count only when written under it (`gen`): whatever a sync begun before the Reset, a tab of an earlier release,
+ * or any other stale writer leaves afterwards is read as nothing (no base, not connected), and discarded at the next
+ * start (personal-sync.js). No key before the first Reset: nothing changes for anyone who never reset.
+ */
+export const GENERATION_KEY = 'daily-planner-sync:generation';
 const VERSION = 1;
 /** A day changed again within this time of its last mark keeps that mark (dirtyAt): typing doesn't rewrite the ledger. */
 const REMARK_MS = 30 * 1000;
@@ -110,26 +117,35 @@ export function createScratchLedger(state = null, options = {}) {
  * every change makes new objects, so a parse can be handed out and kept.
  */
 export function createSyncLedger(storage = localStorage, { now = () => new Date() } = {}) {
+  /** Reset local data's generation (GENERATION_KEY): '' before any Reset. */
+  const generation = () => { try { return storage.getItem(GENERATION_KEY) || ''; } catch { return ''; } };
+  /** Whether something stamped `stamp` was written under the current generation (always, before any Reset). */
+  const current = stamp => { const gen = generation(); return !gen || stamp === gen; };
+  const stamped = value => { const gen = generation(); return gen ? { ...value, gen } : value; };
+
   // The string last read or written, and what it holds (never changed in place).
-  let cache = { raw: undefined, value: null };
+  let cache = { raw: undefined, gen: '', value: null };
   const read = (raw = storage.getItem(LEDGER_KEY)) => {
-    if (raw === cache.raw && cache.value) return cache.value;
+    const gen = generation();
+    if (raw === cache.raw && gen === cache.gen && cache.value) return cache.value;
     const parsed = safeParse(raw, null);
     let value = { version: VERSION, records: {} };
-    if (parsed && parsed.version === VERSION && parsed.records && typeof parsed.records === 'object') {
+    // Written before the last Reset (or by code that doesn't know of it): nothing.
+    if (parsed && parsed.version === VERSION && parsed.records && typeof parsed.records === 'object' && current(parsed.gen)) {
       const records = {};
       for (const [recordId, record] of Object.entries(parsed.records)) records[recordId] = compactEntry(record);
       value = { ...parsed, records };
     }
-    cache = { raw, value };
+    cache = { raw, gen, value };
     return value;
   };
 
-  /** Writes `ledger` (its entries compact). Throws when the browser refuses it, as it always has. */
+  /** Writes `ledger` (its entries compact), under the current generation. Throws when the browser refuses it, as it always has. */
   const write = ledger => {
-    const raw = JSON.stringify(ledger);
+    const value = stamped(ledger);
+    const raw = JSON.stringify(value);
     storage.setItem(LEDGER_KEY, raw);
-    cache = { raw, value: ledger };
+    cache = { raw, gen: generation(), value };
   };
 
   /** Reads the ledger as it is now, lets `fn` change a copy of it (new entries, never the ones read), writes it. */
@@ -309,14 +325,19 @@ export function createSyncLedger(storage = localStorage, { now = () => new Date(
   const chosenCloud = () => {
     const stored = storage.getItem(CLOUD_KEY);
     if (CLOUD_IDS.includes(stored)) return stored;
-    const google = safeParse(storage.getItem(`${PROVIDER_PREFIX}google`), null);
-    return google && (google.connected || google.lastSyncedAt) ? 'google' : '';
+    const google = provider('google');
+    return google.connected || google.lastSyncedAt ? 'google' : '';
   };
   const providerKey = id => `${PROVIDER_PREFIX}${CLOUD_IDS.includes(id) ? id : cloud()}`;
 
-  const provider = (id = cloud()) => safeParse(storage.getItem(providerKey(id)), { connected: false, fileId: '', lastSyncedAt: '', lastError: '' });
+  const provider = (id = cloud()) => {
+    const fallback = { connected: false, fileId: '', lastSyncedAt: '', lastError: '' };
+    const saved = safeParse(storage.getItem(providerKey(id)), null);
+    // A cloud's state written before the last Reset (or by an earlier release after it) never turns sync on.
+    return saved && typeof saved === 'object' && current(saved.gen) ? saved : fallback;
+  };
   const saveProvider = (patch, id = cloud()) => {
-    const next = { ...provider(id), ...patch };
+    const next = stamped({ ...provider(id), ...patch });
     storage.setItem(providerKey(id), JSON.stringify(next));
     return next;
   };
@@ -328,8 +349,8 @@ export function createSyncLedger(storage = localStorage, { now = () => new Date(
   const storedCopy = ledger => {
     const stored = ledger.copy;
     if (stored && typeof stored === 'object') return { cloud: CLOUD_IDS.includes(stored.cloud) ? stored.cloud : '', id: typeof stored.id === 'string' ? stored.id : '' };
-    const google = safeParse(storage.getItem(`${PROVIDER_PREFIX}google`), null);
-    return google?.lastSyncedAt ? { cloud: 'google', id: '' } : null;
+    const google = provider('google');
+    return google.lastSyncedAt ? { cloud: 'google', id: '' } : null;
   };
   const copy = () => storedCopy(read());
   const setCopy = (next = {}) => { change(ledger => { ledger.copy = copyOf(next); }); };
@@ -353,6 +374,8 @@ export function createSyncLedger(storage = localStorage, { now = () => new Date(
    * when the browser refuses the write, as each mark did before.
    */
   const session = () => {
+    // The generation it began under: once Reset ran since, commit() writes nothing (1.40.1).
+    const began = generation();
     const stored = read();
     let view = withHeld(stored.records);
     let owned = view !== stored.records;
@@ -371,6 +394,12 @@ export function createSyncLedger(storage = localStorage, { now = () => new Date(
       copy: () => current,
       markSynced: (recordId, { hash, deletedAt = null } = {}) => mark(recordId, { hash, deletedAt }),
       markRemoteApplied: (recordId, { hash, deletedAt = null } = {}) => mark(recordId, { hash, deletedAt }),
+      /** Forgets a record's entry (1.40.1: a day of nothing a first connection removed here, never sent). */
+      forget: recordId => {
+        own();
+        delete view[recordId];
+        ops.push(ledger => { unwritten.delete(recordId); delete ledger.records[recordId]; });
+      },
       resetBases: (next = { cloud: '', id: '' }) => {
         view = withoutBases(view);
         owned = true;
@@ -387,8 +416,9 @@ export function createSyncLedger(storage = localStorage, { now = () => new Date(
         explicitCopy = true;
         ops.push(ledger => { ledger.copy = to; });
       },
-      /** Writes what was noted since the last commit, if anything (one read, one write). */
+      /** Writes what was noted since the last commit, if anything (one read, one write); nothing once Reset ran since it began. */
       commit: () => {
+        if (generation() !== began) { ops = []; return false; }
         if (!ops.length) return true;
         const pending = ops;
         ops = [];
@@ -397,12 +427,38 @@ export function createSyncLedger(storage = localStorage, { now = () => new Date(
     };
   };
 
-  const reset = () => {
+  /**
+   * Forgets everything sync knows here: the ledger, each cloud's state and the cloud chosen. Reset local data
+   * (1.40.1) also starts a new generation (`bump`), so nothing begun before it writes here afterwards; discarding what
+   * a stale writer left (`bump: false`) keeps the one there is.
+   */
+  const reset = ({ bump = true } = {}) => {
     unwritten.clear();
+    // Removed first: in a browser full to its last character, that is what makes room for the new generation.
     storage.removeItem(LEDGER_KEY);
-    cache = { raw: undefined, value: null };
+    cache = { raw: undefined, gen: '', value: null };
     CLOUD_IDS.forEach(id => storage.removeItem(providerKey(id)));
     storage.removeItem(CLOUD_KEY);
+    if (!bump) return;
+    try {
+      storage.setItem(GENERATION_KEY, `${now().getTime().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
+    } catch (error) {
+      // Still no room: no generation at all, so whatever was stamped with the one before counts for nothing either
+      // (Reset local data writes it again once the days are gone). Thrown, as any refused write.
+      try { storage.removeItem(GENERATION_KEY); } catch (_) {}
+      throw error;
+    }
+  };
+
+  /**
+   * Whether sync state written outside the current generation is stored here (after a Reset, by a sync begun before
+   * it, or by a tab of an earlier release): read as nothing already, and to be discarded (personal-sync.js load()).
+   */
+  const stale = () => {
+    if (!generation()) return false;
+    const ledger = safeParse(storage.getItem(LEDGER_KEY), null);
+    if (ledger && !current(ledger.gen)) return true;
+    return CLOUD_IDS.some(id => { const saved = safeParse(storage.getItem(providerKey(id)), null); return !!saved && !current(saved.gen); });
   };
 
   /** What the bases are now, with the copy they belong to: kept aside before a switch of cloud (createScratchLedger()). Read-only, as read(). */
@@ -435,6 +491,8 @@ export function createSyncLedger(storage = localStorage, { now = () => new Date(
     copy,
     setCopy,
     resetBases,
-    reset
+    reset,
+    generation,
+    stale
   };
 }

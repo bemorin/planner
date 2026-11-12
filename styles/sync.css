@@ -178,6 +178,9 @@
 .personal-sync-conflicts__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .personal-sync-conflicts__actions .secondary-button,
 .personal-sync-conflicts__actions .primary-button { min-height: 40px; }
+/* 1.40.1: a first connection where both sides hold something real: two equal choices, each saying what it keeps and replaces. */
+.personal-sync-conflicts.is-even .personal-sync-conflicts__actions .secondary-button { flex: 1 1 12rem; display: grid; gap: 2px; justify-items: start; padding: 8px 12px; text-align: left; }
+.personal-sync-conflicts__actions small { color: var(--muted); font-size: .64rem; font-weight: 500; line-height: 1.35; white-space: normal; }
 
 /* Google's access ended with changes waiting: Dropbox offered, under a dashed rule, with an inline confirmation. */
 .personal-sync-switch {

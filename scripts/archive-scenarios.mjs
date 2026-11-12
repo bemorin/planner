@@ -18,18 +18,19 @@
 //                address that isn't “localhost”): idle passes wait; a refused save in 1.40 makes room anyway; 1.39.4
 //                edits a day that moved, which the open 1.40 tab then shows at once, the earlier copy kept aside, the
 //                header saying so; Data on this device says the older tab is open; Restore puts it back, keeping
-//                1.39.4's version aside in its place, and 1.39.4 saving over it again leaves the real day kept aside.
+//                1.39.4's version aside in its place, and 1.39.4 saving over it again leaves the real day kept aside,
+//                said again in the header (1.40.1); and Reset local data is refused while the older tab is open.
 // - import       a 10,000-day backup through the file input: every day imported, localStorage at 40% or less.
 // - performance  10,000 days (the import's): first render with and without an archive, the archive's load, Journal
 //                open, a Search keystroke, year review open. Reported, never a gate.
 //
 // The planner is served from this tree by scripts/serve.mjs on port 8800 (ARCHIVE_SCENARIOS_PORT); the older-tab
-// scenario serves two trees in turn on 127.0.0.2:8801 (ARCHIVE_SCENARIOS_SECOND_PORT; 1.39.4 from git, `main` or
-// ARCHIVE_SCENARIOS_OLD_REF).
+// scenario serves two trees in turn on 127.0.0.2:8801 (ARCHIVE_SCENARIOS_SECOND_PORT; 1.39.4 from git: commit 655bcc8,
+// the last release before 1.40, or ARCHIVE_SCENARIOS_OLD_REF).
 
 import { spawn, execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
-import { promises as fs } from 'node:fs';
+import { promises as fs, readFileSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, extname, join, resolve } from 'node:path';
@@ -42,6 +43,8 @@ const port = (name, raw, fallback) => {
   if (!Number.isInteger(value) || value < 1 || value > 65535) throw new Error(`${name} is not a port: ${raw}`);
   return value;
 };
+// This tree's version: its worker's cache is named after it, and the roll call answers with it.
+const VERSION = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')).version;
 const PORT = port('ARCHIVE_SCENARIOS_PORT', process.env.ARCHIVE_SCENARIOS_PORT, 8800);
 const SECOND_PORT = port('ARCHIVE_SCENARIOS_SECOND_PORT', process.env.ARCHIVE_SCENARIOS_SECOND_PORT, 8801);
 const SAFARI = 2621440;
@@ -404,7 +407,8 @@ try {
   });
 
   await scenario('older-tab', async check => {
-    const oldRef = process.env.ARCHIVE_SCENARIOS_OLD_REF || 'main';
+    // The last release before 1.40 (main holds 1.40 and later now).
+    const oldRef = process.env.ARCHIVE_SCENARIOS_OLD_REF || '655bcc8';
     const work = await mkdtemp(resolve(tmpdir(), 'daily-planner-1394-'));
     const oldTree = join(work, 'old');
     await fs.mkdir(oldTree);
@@ -426,7 +430,7 @@ try {
       state.root = root;
       const b = await browser.page(`${origin}/`);
       await b.waitFor("!!document.querySelector('[data-date]')?.textContent && !document.documentElement.hasAttribute('data-booting')", { label: 'tab B' });
-      await b.waitFor("caches.keys().then(keys => keys.includes('daily-planner-1.40.0') && !!navigator.serviceWorker.controller)", { timeout: 20000, label: 'the 1.40 worker' });
+      await b.waitFor(`caches.keys().then(keys => keys.includes('daily-planner-${VERSION}') && !!navigator.serviceWorker.controller)`, { timeout: 20000, label: 'the 1.40 worker' });
       // Opened again under the 1.40 worker: the roll call answers, and the idle pass waits for the older tab.
       await b.go(`${origin}/`);
       await b.waitFor("!!document.querySelector('[data-date]')?.textContent && !document.documentElement.hasAttribute('data-booting')");
@@ -434,7 +438,7 @@ try {
       const waited = await b.evaluate(HOLDINGS);
       check('with the older tab open, the idle pass waits', !waited.manifest && waited.hot === days.length, `${pct(waited.chars)} full, nothing moved`);
       const roll = await b.evaluate("(async () => { const channel = new MessageChannel(); const answer = new Promise(r => { channel.port1.onmessage = e => r(e.data); }); navigator.serviceWorker.controller.postMessage({ type: 'planner-windows' }, [channel.port2]); const held = (await navigator.locks.query()).held.filter(l => l.name === 'daily-planner:tab').length; return { ...(await answer), held }; })()");
-      check('the roll call: two planner windows, one tab lock, a 1.40 worker', roll.windows === 2 && roll.held === 1 && roll.version === '1.40.0', JSON.stringify(roll));
+      check('the roll call: two planner windows, one tab lock, a 1.40 worker', roll.windows === 2 && roll.held === 1 && roll.version === VERSION, JSON.stringify(roll));
       // Storage full, a change in B: refused, so room is made anyway.
       await b.evaluate(`(() => { let used = 0; for (let i = 0; i < localStorage.length; i += 1) { const k = localStorage.key(i); used += k.length + localStorage.getItem(k).length; } Storage.prototype.__realSetItem.call(localStorage, 'daily-planner-ui:scenario-filler', 'x'.repeat(${SAFARI} - used - 300)); return true; })()`);
       await typeInFocus(b, `Typed in 1.40 while storage was full ${'and then some more words, '.repeat(30)}`);
@@ -490,7 +494,18 @@ try {
       await sleep(1500);
       await b.send('Page.bringToFront');
       const still = await b.waitFor(`(async () => { const db = await new Promise(r => { const q = indexedDB.open('daily-planner-archive'); q.onsuccess = () => r(q.result); }); const all = await new Promise(r => { const q = db.transaction('displaced').objectStore('displaced').getAll(); q.onsuccess = () => r(q.result); }); db.close(); return (localStorage.getItem('daily-planner:${blindDay}') || '').includes('and again') ? all.filter(e => e.day === '${blindDay}').map(e => ({ json: e.json, restoredAt: e.restoredAt || '' })) : null; })()`, { timeout: 10000, label: 'the older tab saving again' });
-      check('the older tab saves over it again: the real day is still kept aside, marked restored', still.some(entry => entry.json === archivedThere && entry.restoredAt), `${still.length} copies kept aside`);
+      check('the older tab saves over it again: the real day is still kept aside, once, and no longer marked restored', still.filter(entry => entry.json === archivedThere).length === 1 && still.some(entry => entry.json === archivedThere && !entry.restoredAt), `${still.length} copies kept aside`);
+      // 1.40.1: and the header says so again, once.
+      const again = await b.waitFor("(() => { const pill = document.querySelector('[data-storage-alert]'); return pill && !pill.hidden && pill.dataset.kind === 'aside' ? pill.dataset.tooltip : null; })()", { timeout: 10000, label: 'the header notice, again' });
+      check('the header says so again', /^An earlier version of .+ was kept aside\./.test(again || ''), again);
+      // 1.40.1: with the older tab open, Reset local data waits for it, says so, and removes nothing.
+      const daysBefore = await b.evaluate("Object.keys(localStorage).filter(k => /^daily-planner:\\d{4}-\\d{2}-\\d{2}$/.test(k)).length");
+      await b.evaluate("(() => { document.querySelector('[data-help-open]').click(); setTimeout(() => document.querySelector('[data-reset-open]').click(), 400); return true; })()");
+      const refusedLine = await b.waitFor("(() => { const line = document.querySelector('[data-reset-blocked]'); return line && !line.hidden ? line.textContent : null; })()", { timeout: 10000, label: 'the Reset dialog’s line' });
+      await b.evaluate("(() => { document.querySelector('[data-reset-confirm]').click(); return true; })()");
+      await sleep(1500);
+      const daysAfter = await b.evaluate("Object.keys(localStorage).filter(k => /^daily-planner:\\d{4}-\\d{2}-\\d{2}$/.test(k)).length");
+      check('with the older tab open, Reset is refused, in plain words, and nothing goes', refusedLine === 'The planner is open in another tab. Close it there first, then reset.' && daysAfter === daysBefore && daysBefore > 0, `${refusedLine} (${daysBefore} → ${daysAfter} days)`);
       check('no error in either tab', !a.errors().length && !b.errors().length, [...a.errors(), ...b.errors()].join(' | '));
     } finally {
       await browser.close();

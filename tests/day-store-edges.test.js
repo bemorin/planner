@@ -144,8 +144,8 @@ test('A4 (failed on 51435e7, major). Restore, then the older tab still open on t
   assert.ok(everywhere.includes(JSON.stringify(real)), 'the restored day is never thrown away');
   // Still listed, marked restored, and it can be put back again (once the older tab is closed).
   const again = (await a.store.displaced()).find(entry => entry.id === kept.id);
-  assert.ok(again?.restoredAt, 'marked restored');
-  assert.equal(a.store.lastAside(), null, 'no news for the header: the person restored it');
+  assert.ok(again && !again.restoredAt, 'kept, and said again: no longer marked restored (1.40.1)');
+  assert.equal(a.store.lastAside()?.day, X, 'the header tells the person once more');
   assert.equal(await a.store.restoreAside(kept.id), true);
   assert.equal(a.store.get(key(X)), JSON.stringify(real));
   assert.ok(browser.archive.aside.some(entry => entry.day === X && entry.json === JSON.stringify(blind)), 'and the older tab’s version is kept aside too');
@@ -413,4 +413,72 @@ test('a pass in a tab that hasn’t heard an older tab’s write over an archive
   await c.store.settled();
   assert.ok(browser.archive.aside.some(entry => entry.day === X && entry.json === JSON.stringify(real)), 'then kept aside, as any blind write over it');
   assert.deepEqual(c.store.readJSON(key(X)), blind);
+});
+
+// --- The 1.40.0 third review's Restore leftovers (scratchpad review-1.40.0/pass3 restore.test.js), 1.40.1 -----------
+
+test('R1, R2: Restore, the older tab saves again, three times over: the real day always kept, the older tab’s version kept once, and the person told each time', async () => {
+  const browser = createBrowser();
+  const a = browser.tab({ name: 'A (1.40)' });
+  await a.pass();
+  await browser.deliver();
+  const [X, real] = browser.days[2];
+  const older = browser.olderTab();
+  const blind = { ...createBlankDay(), focus: 'Typed in the older tab' };
+  const olderSaves = async () => { older.store.writeJSON(key(X), blind); await browser.deliver(); await a.store.settled(); };
+  await olderSaves();
+  const notices = [a.store.lastAside()?.day || null];
+  const [kept] = await a.store.displaced();
+  assert.equal(kept.json, JSON.stringify(real));
+  for (let round = 1; round <= 3; round += 1) {
+    assert.equal(await a.store.restoreAside(kept.id), true, `restore ${round}`);
+    await a.store.settled();
+    assert.equal(a.store.get(key(X)), JSON.stringify(real), `restored ${round}`);
+    assert.equal(a.store.lastAside(), null, 'restored: no news');
+    await olderSaves();
+    notices.push(a.store.lastAside()?.day || null);
+  }
+  const list = await a.store.displaced();
+  assert.ok(list.some(entry => entry.json === JSON.stringify(real)), 'the real day is never lost');
+  assert.equal(list.filter(entry => entry.json === JSON.stringify(blind)).length, 1, 'the older tab’s version kept once, however many rounds (R2)');
+  assert.equal(list.length, 2);
+  assert.deepEqual(notices, [X, X, X, X], 'each time the older tab saves over the restored day, the person is told again (R1)');
+});
+
+test('R2: an older tab saving over an archived day the same version that is kept aside already: kept once', async () => {
+  const browser = createBrowser();
+  const a = browser.tab({ name: 'A' });
+  await a.pass();
+  await browser.deliver();
+  const [X, real] = browser.days[4];
+  // The real day kept aside already (an earlier round), and archived again since (a pass moved it back).
+  await browser.archive.keepAside([{ day: X, json: JSON.stringify(real), reason: 'older-tab' }]);
+  browser.olderTab().store.writeJSON(key(X), { ...createBlankDay(), focus: 'Blind' });
+  await browser.deliver();
+  await a.store.settled();
+  assert.equal(browser.archive.aside.filter(entry => entry.day === X && entry.json === JSON.stringify(real)).length, 1, 'not twice');
+  assert.equal(browser.archive.data.has(X), false, 'dropped from the archive all the same: localStorage holds the day now');
+});
+
+test('R1: the restored day edited in 1.40, then written over blind by the older tab: that edit is kept aside, and said', async () => {
+  const browser = createBrowser();
+  const a = browser.tab({ name: 'A' });
+  await a.pass();
+  await browser.deliver();
+  const [X, real] = browser.days[3];
+  const older = browser.olderTab();
+  const blind = { ...createBlankDay(), focus: 'Typed in the older tab' };
+  older.store.writeJSON(key(X), blind);
+  await browser.deliver();
+  await a.store.settled();
+  const [kept] = await a.store.displaced();
+  await a.store.restoreAside(kept.id);
+  await a.store.settled();
+  const edited = { ...real, focus: 'Edited after the restore' };
+  assert.equal(a.store.writeJSON(key(X), edited), true);
+  older.store.writeJSON(key(X), blind);
+  await browser.deliver();
+  await a.store.settled();
+  assert.ok((await a.store.displaced()).some(entry => entry.json === JSON.stringify(edited)), 'the edit kept aside');
+  assert.equal(a.store.lastAside()?.day, X);
 });

@@ -40,7 +40,9 @@ test('the four legal pages exist, and each footer links all four in order', asyn
     // Last changed on 10 November 2026 (1.39: the planner is free and open source, under the MIT licence, and nothing
     // is sold; 1.38 that same day: Dropbox, the sealed copy, Google's access kept until it runs out); the cookies page
     // again on 11 November 2026 (1.39.3: daily-planner-ui:storage-warned) and 12 November 2026 (1.39.4: daily-planner-ui:import-room;
-    // 1.40: older days in IndexedDB daily-planner-archive, daily-planner-store:archive, daily-planner-store:lease, daily-planner-store:reset and daily-planner-ui:aside-seen).
+    // 1.40: older days in IndexedDB daily-planner-archive, daily-planner-store:archive, daily-planner-store:lease, daily-planner-store:reset and daily-planner-ui:aside-seen;
+    // 1.40.1, the same day: Reset local data touches only this browser, turns Personal sync off here, and leaves
+    // daily-planner-sync:generation).
     const dates = { 'legal/': ['2026-11-10', '10 November 2026'], 'legal/terms/': ['2026-11-10', '10 November 2026'], 'legal/privacy/': ['2026-11-10', '10 November 2026'], 'legal/cookies/': ['2026-11-12', '12 November 2026'] };
     const [iso, day] = dates[folder];
     const updated = new RegExp(`Last updated: <time datetime="${iso}">${day}</time>`);

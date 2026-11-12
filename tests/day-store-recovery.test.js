@@ -11,6 +11,7 @@ import { MANIFEST_KEY, encodeManifest, isBlankDay } from '../src/state/day-place
 import { createBlankDay, normalizeDayState } from '../src/state/day-state.js';
 import { buildPlannerBackup } from '../src/state/planner-backup.js';
 import { createPlannerWrites, moveBetweenDays } from '../src/state/day-move.js';
+import { resetLocalData } from '../src/features/reset-local.js';
 
 // The 1.40.0 review's other proofs (scratchpad review-1.40.0: lost-archive, live-tabs test 1, load-window,
 // reset-import, interrupted-place, no-archive, pending-writes), ported. Those that failed before the fix say so.
@@ -233,7 +234,7 @@ test('m2: the person moves on to a day that needs no archive before it loads: th
 
 // --- Reset (m3) ----------------------------------------------------------------------------------------------------
 
-test('export, Reset (both homes), import the backup, reload: every day back, no tombstone left, archive in use again', async () => {
+test('export, Reset (both homes, 1.40.1: no tombstone), import the backup, reload: every day back, archive in use again', async () => {
   const browser = createBrowser();
   const a = browser.tab();
   await a.pass();
@@ -241,11 +242,11 @@ test('export, Reset (both homes), import the backup, reload: every day back, no 
   const backup = buildPlannerBackup(a.store);
   assert.equal(Object.keys(backup.days).length, browser.days.length, 'export has every day, archived ones included');
   const bulk = fn => a.ledger.deferMarks(fn).value;
-  await a.store.clearAll('daily-planner:', { bulk });
+  await resetLocalData({ store: a.store, ledger: a.ledger });
   await a.store.settled();
   assert.equal(browser.base.getItem(MANIFEST_KEY), null);
   assert.equal(browser.archive.data.size, 0, 'the archive cleared');
-  assert.ok(a.ledger.deletedDays().size >= browser.days.length, 'Reset left a tombstone for every day');
+  assert.equal(a.ledger.deletedDays().size, 0, 'Reset leaves no tombstone: it touches only this browser');
   assert.deepEqual((await a.store.importDays(backup, { today: HISTORY_TODAY, bulk })).refused, []);
   browser.closeTabs();
   const b = browser.tab();
@@ -254,16 +255,17 @@ test('export, Reset (both homes), import the backup, reload: every day back, no 
   assert.equal(b.ledger.deletedDays().size, 0);
 });
 
-test('m3 (failed before): Reset while the archive can’t be read this session: every older day gets its tombstone, and the database is deleted', async () => {
-  // Synced first, so that the ledger knows every day (a tombstone is what tells the other devices).
-  const { browser, moved } = await syncedAndMoved();
+test('m3: Reset while the archive can’t be read this session: no older day gets a tombstone (1.40.1), the ledger is cleared, and the database is deleted', async () => {
+  // Synced first, so that the ledger knows every day.
+  const { browser } = await syncedAndMoved();
   browser.closeTabs();
   const failing = new Error('IndexedDB not answering');
   for (const kind of ['open', 'all', 'read', 'clear', 'remove']) browser.archive.faults[kind] = failing;
   const b = browser.tab();
   assert.equal(await b.store.ready(), 'unavailable');
-  await b.store.clearAll('daily-planner:', { bulk: fn => b.ledger.deferMarks(fn).value });
-  assert.equal(moved.filter(day => b.ledger.deletedDays().has(day)).length, moved.length, 'each older day deleted, for sync too');
+  await resetLocalData({ store: b.store, ledger: b.ledger });
+  assert.equal(b.ledger.deletedDays().size, 0, 'nothing deleted, for sync');
+  assert.equal(browser.base.getItem('daily-planner-sync:ledger'), null, 'the ledger cleared');
   assert.equal(browser.archive.data.size, 0, 'the database deleted (indexedDB.deleteDatabase) when it couldn’t be emptied');
   assert.equal(b.store.databaseLeft(), false);
   assert.equal(browser.base.getItem(MANIFEST_KEY), null);
@@ -278,7 +280,7 @@ test('m3: Reset when even deleting the database fails (another tab holds it open
   for (const kind of ['clear', 'destroy']) browser.archive.faults[kind] = failing;
   const b = browser.tab();
   await b.store.ready();
-  await b.store.clearAll('daily-planner:', { bulk: fn => b.ledger.deferMarks(fn).value });
+  await b.store.clearAll('daily-planner:');
   assert.equal(b.store.databaseLeft(), true, 'what the header says after Reset (src/features/storage-alert.js)');
   assert.ok(browser.base.getItem(RESET_KEY) != null);
   assert.ok(browser.archive.data.size > 0);

@@ -155,6 +155,21 @@ export function createArchiveKeeper({
   }
 
   /**
+   * Whether a planner tab other than this one is open now, of any release (1.40.1: Reset local data waits for it): more
+   * than one holder of the tab lock (1.40 and later), or more than one planner window as the service worker counts
+   * them (any release, 1.39.4 included). This tab's floating window is neither. False when neither can be told.
+   */
+  async function otherTabsOpen() {
+    let count = 0;
+    if (typeof nav?.locks?.query === 'function') count = Math.max(count, (await tabLocks()) || 0);
+    if (!localDev) {
+      const answer = await ask({ type: 'planner-windows' });
+      if (answer && Number.isFinite(Number(answer.windows))) count = Math.max(count, Number(answer.windows));
+    }
+    return count > 1;
+  }
+
+  /**
    * Whether a planner window of an older release is open now, as the roll call says (more windows than tab locks):
    * false when it can't be told (no worker of 1.40 answering, no Web Locks) and on localhost.
    */
@@ -279,6 +294,8 @@ export function createArchiveKeeper({
     get viewPending() { return viewPending; },
     /** Whether a tab of an older release is open (Data on this device says so next to Restore). */
     olderTabOpen,
+    /** Whether another planner tab is open, of any release (Reset local data waits for it). */
+    otherTabsOpen,
     /** The days on screen (YYYY-MM-DD): the Day, or the planning week. */
     inView: () => inView(),
     /** What the last pass did (tests and the browser scenarios). */
@@ -287,9 +304,12 @@ export function createArchiveKeeper({
     get followingUp() { return following; },
     clear,
     keepStorage,
-    /** Reset local data: the snapshot taken before the first pass goes with the planner (sync's own snapshots stay). */
+    /**
+     * Reset local data: the recovery snapshots go with the planner (1.40.1: all of them, sync's own too, before
+     * changes from other devices and at a conflict; each holds days, and Reset removes every saved day here).
+     */
     forget: async () => {
-      try { return await (recoveryStore || createRecoveryStore()).remove(snapshot => snapshot.reason === 'before-archive'); } catch (_) { return 0; }
+      try { return await (recoveryStore || createRecoveryStore()).remove(() => true); } catch (_) { return 0; }
     }
   };
 }

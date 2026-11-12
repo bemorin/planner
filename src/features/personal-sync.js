@@ -4,7 +4,8 @@ import { SyncRemoteChangedError } from '../sync/cloud.js';
 import { createGoogleDriveProvider } from '../sync/google-drive.js';
 import { createDropboxProvider, readOAuthReturn } from '../sync/dropbox.js';
 import { createKeyStore } from '../sync/key-store.js';
-import { createScratchLedger } from '../sync/ledger.js';
+import { GENERATION_KEY, createScratchLedger } from '../sync/ledger.js';
+import { hasOwnDays } from '../sync/fresh.js';
 import { SyncPassphraseNeededError, createSealedTransport, createSyncProtection } from '../sync/protection.js';
 import { passphraseStrength } from '../sync/seal.js';
 import { createRecoveryStore } from '../sync/recovery-store.js';
@@ -158,7 +159,7 @@ export function createPersonalSyncFeature({
       [choice, card, recovery, sealLine].forEach(element => { if (element) element.hidden = true; });
     }
     const idle = { configured: false, cloud: '', clouds: [], connected: false, busy: false, reconnect: false, accessUntil: 0, dirty: false, dirtyCount: 0, lastSyncedAt: '', conflicts: 0, need: '', error: '' };
-    return { load() { if (dropboxBlocked) stripOAuthReturn(); }, syncNow() {}, noteLocalChange() {}, render() {}, destroy() {}, focus() {}, prepare() {}, reconnect: async () => null, getState: () => ({ ...idle }), subscribe: () => () => {}, clouds: [] };
+    return { load() { if (dropboxBlocked) stripOAuthReturn(); }, syncNow() {}, noteLocalChange() {}, render() {}, destroy() {}, focus() {}, prepare() {}, reconnect: async () => null, forgetHere: async () => '', getState: () => ({ ...idle }), subscribe: () => () => {}, clouds: [] };
   }
   root.hidden = false;
 
@@ -172,6 +173,12 @@ export function createPersonalSyncFeature({
   let selected = available.includes(named) ? named : available.includes('dropbox') ? 'dropbox' : available[0];
   let busy = false;
   let connecting = false;
+  // The records the last sync stopped on (the conflict card names them: the settings, days), and whether it was a
+  // first connection (no base at all: both sides hold something real, so neither choice is the safe one).
+  let conflictIds = [];
+  let conflictFirst = false;
+  // Reset local data under way (forgetHere()): no sync starts.
+  let resetting = false;
   // The cloud a sign-in in progress is for (Dropbox's page, then back): the card names it, not the one still connected.
   let connectingTo = '';
   let working = false;
@@ -288,7 +295,7 @@ export function createPersonalSyncFeature({
       dirtyCount,
       lastSyncedAt: saved.lastSyncedAt || '',
       lastError: saved.lastError || '',
-      conflicts: conflictCount,
+      conflicts: conflictIds.length ? [...conflictIds] : conflictCount,
       refused: refusedCount,
       need: need?.reason || '',
       moved: movedAway() ? 'dropbox' : '',
@@ -303,7 +310,7 @@ export function createPersonalSyncFeature({
       connected: state.connected,
       connecting,
       busy,
-      conflicts: conflictCount,
+      conflicts: conflictIds.length ? conflictIds : conflictCount,
       reconnect: state.reconnect,
       dirty: state.dirty,
       dirtyCount: state.dirtyCount,
@@ -445,12 +452,30 @@ export function createPersonalSyncFeature({
       sealLine.classList.toggle('is-sealed', html.includes('data-personal-sync-change'));
     }
     if (conflictCopy) conflictCopy.textContent = conflictCount ? `Review ${conflictCount} ${conflictCount === 1 ? 'conflict' : 'conflicts'}` : '';
-    if (useRemote) useRemote.textContent = `Use ${cloudName(id)}`;
+    if (conflictCount && useRemote && keepLocal) renderConflictChoices(id);
     if (conflictActions) conflictActions.hidden = !conflictCount || busy || view.state === 'reconnect' || view.state === 'ended';
     renderPanel(view.panel);
     renderRecovery();
     watchExpiry(view.access ? state.accessUntil : 0);
     listeners.forEach(listener => { try { listener(state); } catch {} });
+  }
+
+  /**
+   * The two choices of a conflict (1.40.1). Nothing of this browser's own to keep (no day of the person's, after a
+   * Reset say): the copy is the safe choice, so it is the main button. A first connection where this browser has days
+   * of its own: both sides hold something real, so neither is the main button, and each says what it keeps and what it
+   * replaces. Otherwise, as before: Keep this device first.
+   */
+  function renderConflictChoices(id) {
+    const name = cloudName(id);
+    const own = hasOwnDays(store);
+    const even = conflictFirst && own;
+    const label = (title, hint) => (even ? `<span>${esc(title)}</span><small>${esc(hint)}</small>` : `<span>${esc(title)}</span>`);
+    useRemote.innerHTML = label(`Use ${name}`, `Keeps what is in ${name}, and replaces this device’s version`);
+    keepLocal.innerHTML = label('Keep this device', `Keeps this device’s version, and replaces the one in ${name} and on your other devices`);
+    useRemote.className = !own ? 'primary-button' : 'secondary-button';
+    keepLocal.className = own && !even ? 'primary-button' : 'secondary-button';
+    conflictActions?.classList?.toggle('is-even', even);
   }
 
   /**
@@ -463,7 +488,7 @@ export function createPersonalSyncFeature({
     const once = async () => {
       try {
         const result = await engine.sync(transport(), { buildBackup, conflictResolution, restoreMissing });
-        if (result?.pulled?.length) applied = true;
+        if (result?.pulled?.length || result?.dropped?.length) applied = true;
         return result;
       } catch (error) {
         if (error?.pulled?.length) applied = true;
@@ -485,7 +510,9 @@ export function createPersonalSyncFeature({
   }
 
   async function runSync({ interactive = false, conflictResolution = null, reason = 'manual' } = {}) {
-    if (busy || connecting) return null;
+    if (busy || connecting || resetting) return null;
+    // Begun now: after a Reset (this tab or another), it writes nothing more here.
+    const live = begun();
     const id = active();
     const cloud = providers[id];
     if (!ledger.provider(id).connected) return null;
@@ -517,18 +544,22 @@ export function createPersonalSyncFeature({
     let finished = false;
     try {
       await ready;
+      if (!live()) return null;
       // Every day this browser keeps, readable first (1.40, src/state/day-store.js): a day not loaded yet, or that can't
       // be read, would be taken for deleted and removed from the copy. Sync waits, and says why.
       // Lost (the database found empty), only a sync asked for runs: it brings back from the copy what is missing here.
       const archive = await store.ready?.();
+      if (!live()) return null;
       if (archive === 'unavailable' || (archive === 'lost' && automatic)) {
         infoNote = archiveSyncNote(archive);
         return null;
       }
       await flushLocal?.();
+      if (!live()) return null;
 
       if (authorizing) {
         await authorizing;
+        if (!live()) return null;
         needsReconnect = false;
         googleLoadFailed = false;
         // The account, for login_hint next time: Google's window then opens and closes by itself.
@@ -536,6 +567,7 @@ export function createPersonalSyncFeature({
       }
 
       const result = await runEngineSync(conflictResolution, { restoreMissing: archive === 'lost' });
+      if (!live()) return null;
       // Lost, and that sync brought back all the copy has (nothing refused): what is still missing is gone for good.
       if (archive === 'lost' && result?.status === 'ok' && !result.refused?.length) await store.settle?.();
       copyFormat = transport().format;
@@ -548,6 +580,8 @@ export function createPersonalSyncFeature({
       if (id === 'google') ledger.saveProvider({ movedTo: result.movedTo || '' }, id);
       if (result.status === 'conflict') {
         conflictCount = result.conflicts.length;
+        conflictIds = [...result.conflicts];
+        conflictFirst = !!result.first;
         ledger.saveProvider({ connected: true, lastError: 'conflict' }, id);
       } else {
         ledger.saveProvider({ connected: true, lastSyncedAt: now().toISOString(), lastError: '' }, id);
@@ -557,6 +591,8 @@ export function createPersonalSyncFeature({
       needsReconnect = false;
       return result;
     } catch (error) {
+      // Reset ran meanwhile: nothing of this sync is kept or said (the engine stopped, code 'reset').
+      if (!live() || error?.code === 'reset') return null;
       if (error instanceof SyncPassphraseNeededError || error?.code === 'passphrase') {
         need = { reason: error.reason, envelope: error.envelope || null };
         copyFormat = error.reason === 'create' ? copyFormat : 'sealed';
@@ -577,7 +613,7 @@ export function createPersonalSyncFeature({
       return null;
     } finally {
       // Switch to Dropbox: its first sync has run, so the cloud left behind gets its marker, then goes.
-      if (finished) await finishSwitch().catch(() => {});
+      if (finished && live()) await finishSwitch().catch(() => {});
       busy = false;
       render();
     }
@@ -604,6 +640,7 @@ export function createPersonalSyncFeature({
     shownNote = '';
     errorNote = '';
     const cloud = providers[id];
+    const live = begun();
     if (cloud.signIn === 'redirect') {
       // Dropbox's own page, then back here (load() finishes it). Everything is saved before leaving.
       connecting = true;
@@ -612,6 +649,7 @@ export function createPersonalSyncFeature({
       try {
         await flushLocal?.();
         const url = await cloud.beginAuthorization();
+        if (!live()) { connecting = false; connectingTo = ''; render(); return; }
         locationRef?.assign?.(url);
       } catch (error) {
         connecting = false;
@@ -627,6 +665,7 @@ export function createPersonalSyncFeature({
     switchTo(id);
     ledger.saveProvider({ connected: true }, id);
     await runSync({ interactive: true, reason: 'connect' });
+    if (!live()) return;
     // Google's window closed or refused: not connected after all, and why.
     if (!cloud.hasUsableToken() && !need) {
       ledger.saveProvider({ connected: false, lastError: '' }, id);
@@ -712,11 +751,13 @@ export function createPersonalSyncFeature({
     if (!from) selected = 'dropbox';
     render();
     // An answer with no sign-in waiting here (another browser's, an old tab, a reload): said, never ignored.
+    const live = begun();
     const result = answer.owned
       ? await providers.dropbox.completeAuthorization(answer).catch(() => ({ ok: false, reason: 'failed' }))
       : { ok: false, reason: 'stale' };
     connecting = false;
     connectingTo = '';
+    if (!live()) { render(); return; }
     if (result.ok) {
       if (from) leavingBases = ledger.snapshot();
       // Switching: the cloud left stays connected until Dropbox has synced once.
@@ -832,17 +873,22 @@ export function createPersonalSyncFeature({
     button?.addEventListener('focusin', prepareConnect);
   });
 
-  disconnect?.addEventListener('click', async () => {
-    const id = active();
-    // Mid-switch, the cloud being left goes too: Disconnect leaves this device with no cloud.
-    const from = leaving();
-    [id, from].filter(Boolean).forEach(cloud => {
-      providers[cloud]?.clearToken?.();
-      ledger.saveProvider({ connected: false, lastError: '', movedTo: '' }, cloud);
-    });
-    ledger.saveProvider({ switchingFrom: '' }, 'dropbox');
+  /**
+   * A flow (a sync, a connection, Dropbox's return) begun now: the function it returns says whether it may still
+   * write here. Reset local data (1.40.1), in this tab or another, starts a new generation (src/sync/ledger.js), and
+   * from then on a flow begun before it writes nothing: no ledger, no cloud state, no `connected`, no card.
+   */
+  const begun = () => {
+    const at = typeof ledger.generation === 'function' ? ledger.generation() : '';
+    return () => typeof ledger.generation !== 'function' || ledger.generation() === at;
+  };
+
+  /** What the card shows about a connection, forgotten (Disconnect, Reset local data). */
+  function forgetCard() {
     leavingBases = null;
     conflictCount = 0;
+    conflictIds = [];
+    conflictFirst = false;
     lastErrorMessage = '';
     errorNote = '';
     infoNote = '';
@@ -853,6 +899,59 @@ export function createPersonalSyncFeature({
     switching = false;
     scheduler.clearTimers();
     scheduler.markClean();
+  }
+
+  /**
+   * Reset local data (1.40.1): Personal sync is turned off in this browser, as in a new one, and the copy is never
+   * touched (no write, no deletion). First the ledger is reset under a new generation: every sync, connection or
+   * sign-in begun before, in this tab or another, stops at its next step and writes nothing here afterwards (the
+   * engine and each flow check it), and the other tabs stand down as they hear it (standDown()). Then both clouds'
+   * access and the seal (its key, its database, daily-planner-sync:protection) go. Connecting again later is a first
+   * connection: it brings the plans back. Returns the name of the cloud this browser was connected to, or ''.
+   */
+  async function forgetHere() {
+    const state = getState();
+    const name = state.connected ? providers[state.cloud]?.name || '' : '';
+    resetting = true;
+    try {
+      // The keys go first, then the new generation (src/sync/ledger.js): even when the browser is too full for it,
+      // the connection is forgotten below, and Reset local data writes the generation again once the days are gone.
+      try { ledger.reset(); } catch (_) {}
+    } finally {
+      await forgetConnection();
+      resetting = false;
+    }
+    render();
+    return name;
+  }
+
+  /** Both clouds' access, the card's state and the seal, forgotten here (Reset, and what another tab's Reset or a stale writer leaves). */
+  async function forgetConnection() {
+    available.forEach(cloud => { try { providers[cloud]?.clearToken?.(); } catch {} });
+    forgetCard();
+    await guard.forget({ everything: true }).catch(() => {});
+  }
+
+  /**
+   * Another tab reset this browser (its new generation heard): this one stands down at once. Its sync under way stops
+   * at its next step (it checks the generation), and nothing of the connection stays in memory or is written here.
+   */
+  async function standDown() {
+    resetting = true;
+    try { await forgetConnection(); } finally { resetting = false; }
+    render();
+  }
+
+  disconnect?.addEventListener('click', async () => {
+    const id = active();
+    // Mid-switch, the cloud being left goes too: Disconnect leaves this device with no cloud.
+    const from = leaving();
+    [id, from].filter(Boolean).forEach(cloud => {
+      providers[cloud]?.clearToken?.();
+      ledger.saveProvider({ connected: false, lastError: '', movedTo: '' }, cloud);
+    });
+    ledger.saveProvider({ switchingFrom: '' }, 'dropbox');
+    forgetCard();
     // No cloud left: nothing of the seal stays (the key, its database, daily-planner-sync:protection).
     const remaining = available.filter(cloud => ledger.provider(cloud).connected);
     await guard.forget({ everything: !remaining.length });
@@ -966,9 +1065,12 @@ export function createPersonalSyncFeature({
   };
 
   if (documentRef) addEventListener(documentRef, 'visibilitychange', onVisibility);
+  // Reset local data in another tab (its new generation): this one stands down (1.40.1).
+  const onStorage = event => { if (event?.key === GENERATION_KEY && event.newValue && event.newValue !== event.oldValue) standDown(); };
   if (windowRef) {
     addEventListener(windowRef, 'focus', onFocus);
     addEventListener(windowRef, 'online', onOnline);
+    addEventListener(windowRef, 'storage', onStorage);
   }
 
   // Settings open: the card drawn again every minute (Google's access meter, “2 min ago”); closed, the timer stops.
@@ -1000,6 +1102,9 @@ export function createPersonalSyncFeature({
   async function load() {
     // Read before anything else runs, so the code never stays in the address.
     const answer = takeOAuthReturn();
+    // Sync state written after a Reset by a flow begun before it, or by a tab of an earlier release (1.40.1): read as
+    // nothing already (src/sync/ledger.js), and discarded now, with that writer's access and seal.
+    if (ledger.stale?.()) { ledger.reset({ bump: false }); await forgetConnection(); }
     render();
     await ready;
     render();
@@ -1049,6 +1154,7 @@ export function createPersonalSyncFeature({
     prepare,
     getState,
     subscribe,
+    forgetHere,
     /** The header alert's one tap: Google's window from within it (with nothing awaited first), then the sync. */
     reconnect: () => primaryAction(),
     scheduler,

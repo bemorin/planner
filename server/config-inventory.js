@@ -128,7 +128,7 @@ export const PLATFORM_BINDINGS = Object.freeze([
 export const LOCAL_VARIABLES = Object.freeze([
   Object.freeze({ name: 'PORT', readBy: 'scripts/serve.mjs', use: 'The dev server’s port (8080 by default; --port wins).' }),
   Object.freeze({ name: 'CHROME_BIN', readBy: 'scripts/smoke.mjs', use: 'The Chrome or Chromium the smoke test drives.' }),
-  Object.freeze({ name: 'ARCHIVE_SCENARIOS_OLD_REF', readBy: 'scripts/archive-scenarios.mjs', use: 'The git ref of the older planner the archive scenarios open beside this one (main by default).' }),
+  Object.freeze({ name: 'ARCHIVE_SCENARIOS_OLD_REF', readBy: 'scripts/archive-scenarios.mjs', use: 'The git ref of the older planner the archive scenarios open beside this one (655bcc8, 1.39.4, by default).' }),
   Object.freeze({ name: 'ARCHIVE_SCENARIOS_PORT', readBy: 'scripts/archive-scenarios.mjs', use: 'The port the archive scenarios serve this planner on (8800 by default).' }),
   Object.freeze({ name: 'ARCHIVE_SCENARIOS_SECOND_PORT', readBy: 'scripts/archive-scenarios.mjs', use: 'The port of the archive scenarios’ second address, 127.0.0.2 (8801 by default).' }),
   Object.freeze({ name: 'PROGRAMFILES', readBy: 'scripts/smoke.mjs', use: 'Windows: where the smoke test looks for Chrome.' }),

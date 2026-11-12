@@ -95,7 +95,8 @@ test('the room kept grows with the days stored, and storage already that full ge
   // And the planner takes one left by a closed tab back as it starts, and with Reset local data.
   const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
   assert.match(app, /restateRetiredBase\(store, syncLedger\);\n[^\n]*\n\s*store\.withoutMutationTracking\(\(\) => store\.remove\(IMPORT_ROOM_KEY\)\);/);
-  assert.match(app, /store\.withoutMutationTracking\(\(\) => \{ store\.remove\('daily-planner-ui:trophies-seen'\); store\.remove\(IMPORT_ROOM_KEY\); \}\);/);
+  // Reset (1.40.1, src/features/reset-local.js) removes it too, with the other planner keys, never as a change.
+  assert.match(app, /keys: \['daily-planner-ui:trophies-seen', IMPORT_ROOM_KEY\]/);
   // Chromium's budget: 5% of it.
   const chromium = planner(5242880);
   const big = chromium.inBulk(() => importPlannerBackup(chromium.store, historyBackup(historyDays(3000)), { budget: 5242880 }));
@@ -139,7 +140,7 @@ test('the planner says it: in the import’s alert, its marks written once, Pers
   assert.match(app, /if \(!report\.complete\) alert\(report\.text\);/);
   assert.match(app, /try \{ const \{ value, marked \} = syncLedger\.deferMarks\(fn\); if \(marked !== null\) saveHealth\.note\(\{ key: LEDGER_KEY, ok: marked \}\); return value; \} finally \{ bulkWrites = false; personalSyncFeature\?\.noteLocalChange\?\.\(\); \}/);
   assert.match(app, /if \(!bulkWrites\) personalSyncFeature\?\.noteLocalChange\?\.\(\);/);
-  assert.match(app, /await store\.clearAll\('daily-planner:', \{ bulk: inBulk \}\);/, 'Reset local data: one ledger write too (1.40: both homes)');
+  assert.match(app, /await resetLocalData\(\{ store, ledger: syncLedger, sync: personalSyncFeature,/, 'Reset local data (1.40.1): no ledger mark at all, the ledger cleared');
   // One write of the ledger for the whole import.
   const p = planner(Infinity);
   let writes = 0;

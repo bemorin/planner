@@ -2,6 +2,16 @@
 
 All notable changes to Daily Planner are recorded here. Versions follow `major.minor.patch`; a feature release bumps the minor number.
 
+## 1.39.4 — 2026-11-12
+
+As quick after years of plans as on the first day, roomier Day and Week prints, clearer checkboxes in dark mode, and nothing lost when this browser runs out of space.
+
+- **No slowdown with a long history.** Search, Unresolved, the floating window and the week review answer at once, however many days you have saved. Personal sync with thousands of days takes a moment instead of minutes, and keeps less in this browser, leaving more room for your plans. Importing a backup of many years, and Reset local data, take seconds.
+- **Day and Week prints use more of the page.** They are now as tall as the year map, the quarter check-in and your year in review: the schedule’s hours are roomier and the notes box is taller, still on one page with a margin all round, on A4 and Letter.
+- **Checkboxes are clearer in dark mode.** A ticked winning habit in Close day shows its tick again, instead of a blank light square, and the switches of a shared image show their knob clearly.
+- **Nothing vanishes when this browser is out of space.** A block moved to another day, a day closed with its items carried forward, and an item planned or saved from Unresolved either move completely or stay exactly where they were, and the header says the change wasn’t saved. Close day then keeps the day open, the block editor stays open, and Unresolved keeps the plan ready to confirm again.
+- **Import says what didn’t fit, and leaves room.** When a backup is too big for this browser, the planner imports your settings and your most recent days, keeps some space free so you can go on planning, and says how many days were imported and how many weren’t, instead of finishing as if all went well.
+
 ## 1.39.3 — 2026-11-11
 
 A roomier Journal that stays fast however long your history, prints that keep to their page, and a clear notice when this browser runs out of space for your planner.

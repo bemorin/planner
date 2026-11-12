@@ -37,8 +37,10 @@ import { createPersonalSyncFeature } from './src/features/personal-sync.js';
 import { createSyncStatus } from './src/features/sync-status.js';
 import { createBlankDay, normalizeDayState } from './src/state/day-state.js';
 import { normalizePlannerSettings } from './src/state/settings-state.js';
-import { forgetRetiredData, withoutRetiredSettings } from './src/state/retired-keys.js';
-import { buildPlannerBackup, formatStorageBytes } from './src/state/planner-backup.js';
+import { forgetRetiredData } from './src/state/retired-keys.js';
+import { IMPORT_ROOM_KEY, buildPlannerBackup, formatStorageBytes, importPlannerBackup, importReport } from './src/state/planner-backup.js';
+import { createSavedDays } from './src/state/saved-days.js';
+import { createPlannerWrites, moveBetweenDays } from './src/state/day-move.js';
 import { openDatePopover, openDateRangePopover } from './src/ui/calendar-popover.js';
 import { openListbox } from './src/ui/listbox.js';
 import { closeOnTriggerClick } from './src/ui/popover-trigger.js';
@@ -49,7 +51,8 @@ import { createWeekFeature } from './src/features/week.js';
 import { searchPlannerDays, searchSnippet } from './src/features/search.js';
 import { createJournal } from './src/features/journal.js';
 import { createSaveHealth, LEDGER_KEY, measureStorage, storageBudget, storageLevel } from './src/state/storage-health.js';
-import { createStorageAlert, storageSafetyLine } from './src/features/storage-alert.js';
+import { FULL_TITLE, createStorageAlert, storageSafetyLine } from './src/features/storage-alert.js';
+import { candidateTriaged, candidatesForSavedDay, needsAttention } from './src/features/unresolved.js';
 import { createWeekReviewFeature } from './src/features/week-review.js';
 import { createWorkspaceFeature } from './src/features/workspace.js';
 import { createDaySwipeNavigation, navigationDirection } from './src/features/day-swipe.js';
@@ -72,6 +75,9 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   let localSavingAvailable = true;
   let storageCheckAt = 0;
   let storageCheckTimer = 0;
+  // Many writes at once (Import, Reset local data): the sync ledger marks them in one write, Personal sync hears of
+  // them once, not once per day, and what they couldn't store they say themselves (1.39.4).
+  let bulkWrites = false;
   // Saves landing again means storage changed: it is measured once more at once, not a minute later.
   const saveHealth = createSaveHealth({ onChange: change => { renderStorageState(); if (!change.failing) checkStorageSoon({ soon: true }); } });
   // Saving never worked in this browser (blocked, or no room at all, as in some private windows): the startup dialog says so.
@@ -81,11 +87,18 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     onMutation: mutation => {
       const marked = syncLedger.recordMutation(mutation);
       if (marked !== null) saveHealth.note({ key: LEDGER_KEY, ok: marked });
-      personalSyncFeature?.noteLocalChange?.();
+      if (!bulkWrites) personalSyncFeature?.noteLocalChange?.();
       journal?.noteMutation(mutation);
     },
-    onWrite: result => { saveHealth.note(result); if (result.ok && result.tracked) retryRefused(); }
+    // What Import couldn't store, it says itself: not “Not saved”, which is for the person's own changes.
+    onWrite: result => { if (result.ok || !bulkWrites) saveHealth.note(result); if (result.ok && result.tracked) retryRefused(); }
   });
+  const inBulk = fn => {
+    bulkWrites = true;
+    try { const { value, marked } = syncLedger.deferMarks(fn); if (marked !== null) saveHealth.note({ key: LEDGER_KEY, ok: marked }); return value; } finally { bulkWrites = false; personalSyncFeature?.noteLocalChange?.(); }
+  };
+  // Search, Unresolved, the floating window and the week review read every saved day: each is parsed again only once it changed.
+  const savedDays = createSavedDays(store);
   // A write landed, so there is room again: what was refused and is still held here (the day on screen, the
   // settings) is written once more, rather than waiting for its next change.
   let retrying = false;
@@ -106,6 +119,8 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   // restated without its fields before anything saves them (src/state/retired-keys.js, src/sync/document.js).
   forgetRetiredData(browserStorage);
   restateRetiredBase(store, syncLedger);
+  // The room an import holds free while it writes, if a tab closed in the middle of one (src/state/planner-backup.js).
+  store.withoutMutationTracking(() => store.remove(IMPORT_ROOM_KEY));
   let settings = loadSettings();
   let saveTimer;
   let settingsTimer;
@@ -194,7 +209,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   }
 
   function persistSettings() {
-    try { store.writeJSON('daily-planner:settings', settings); } catch (_) {}
+    try { return store.writeJSON('daily-planner:settings', settings); } catch (_) { return false; }
   }
 
   // After an import, a sync or a reset.
@@ -633,6 +648,28 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     renderPip();
   }
 
+  // Changes across days and the settings (a block moved, Close day, Unresolved's Plan and Save) are written targets
+  // first and all or nothing (src/state/day-move.js): refused (storage full), what was written gets its previous
+  // string back. The day on screen is edited as a copy, and shows it only once everything landed.
+  const dayToEdit = key => (key === ymd() ? JSON.parse(JSON.stringify(state)) : loadStateForDate(dateFromKey(key)));
+  // While they run, the retry of refused saves waits and their sync marks are held; a key put back marks nothing; the
+  // screen takes the copies (`apply`) once all landed, then the retry runs once (createPlannerWrites()).
+  const plannerWrites = createPlannerWrites({
+    store, ledger: syncLedger,
+    hold: fn => { const was = retrying; retrying = true; try { return fn(); } finally { retrying = was; } },
+    retry: () => retryRefused(),
+    onMarks: marked => saveHealth.note({ key: LEDGER_KEY, ok: marked })
+  });
+  const commitInOrder = plannerWrites.commit;
+  const moveBlock = (sourceKey, targetKey, change) => {
+    const edited = new Map();
+    const read = key => { const day = dayToEdit(key); edited.set(key, day); return day; };
+    const days = { saved: key => store.get(`daily-planner:${key}`), write: (key, day) => persistStateForDate(dateFromKey(key), day), put: (key, raw) => plannerWrites.put(`daily-planner:${key}`, raw) };
+    const moved = plannerWrites.guarded(() => moveBetweenDays({ sourceKey, targetKey, read, change, ...days }));
+    if (moved === 'moved') { if (edited.has(ymd())) Object.assign(state, edited.get(ymd())); plannerWrites.retry(); }
+    return moved;
+  };
+
   function moveWeekBlock(dayKey, blockId, start, destinationDayKey = dayKey) {
     const sourceDate = dateFromKey(dayKey);
     const sourceState = ymd(sourceDate) === ymd(date) ? state : loadStateForDate(sourceDate);
@@ -647,10 +684,9 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
       block.startDate = dayKey;
       block.endDate = addDaysKey(dayKey, Math.floor((block.start + block.duration) / (24 * 60)));
       if (sourceState === state) save(); else persistStateForDate(sourceDate, sourceState);
-    } else {
-      const targetDate = dateFromKey(targetKey);
-      const targetState = ymd(targetDate) === ymd(date) ? state : loadStateForDate(targetDate);
-
+    } else moveBlock(dayKey, targetKey, (sourceState, targetState) => {
+      // Copies of both days: the target is written first, and refused (storage full) the block stays where it was.
+      const block = sourceState.blocks.find(item => item.id === blockId);
       sourceState.blocks = sourceState.blocks.filter(item => item.id !== blockId);
 
       if (block.linkedType && block.linkedId) {
@@ -690,11 +726,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
       block.startDate = targetKey;
       block.endDate = addDaysKey(targetKey, Math.floor((block.start + block.duration) / (24 * 60)));
       targetState.blocks.push(block);
-
-      if (sourceState !== state) persistStateForDate(sourceDate, sourceState);
-      if (targetState !== state) persistStateForDate(targetDate, targetState);
-      if (sourceState === state || targetState === state) save();
-    }
+    });
 
     renderWeekSchedule();
     renderItems();
@@ -1367,20 +1399,14 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
         }
         if (sourceState !== state) persistStateForDate(dateFromKey(sourceKey), sourceState);
       } else {
-        if (existingBlock) sourceState.blocks = sourceState.blocks.filter(b => b.id !== existingBlock.id);
-        if (sourceState !== state) persistStateForDate(dateFromKey(sourceKey), sourceState);
-        const targetState = targetKey === currentKey ? state : loadStateForDate(dateFromKey(targetKey));
-        const linked = moveLinkedSourceToDate(targetState, title, sourceState, sourceKey);
-        const created = {
-          id: uid('block'),
-          ...payloadBase,
-          linkedType: linked.type,
-          linkedId: linked.id,
-          completedAt: '',
-          actualDuration: null
-        };
-        targetState.blocks.push(created);
-        if (targetState !== state) persistStateForDate(dateFromKey(targetKey), targetState);
+        // To another day: the target is written first. Refused (storage full), the block stays where it was, and
+        // its editor stays open with what was typed.
+        const moved = moveBlock(sourceKey, targetKey, (from, to) => {
+          if (existingBlock) from.blocks = from.blocks.filter(b => b.id !== existingBlock.id);
+          const linked = moveLinkedSourceToDate(to, title, from, sourceKey);
+          to.blocks.push({ id: uid('block'), ...payloadBase, linkedType: linked.type, linkedId: linked.id, completedAt: '', actualDuration: null });
+        });
+        if (moved === 'refused') return showFormError(`${FULL_TITLE} The block stays where it was.`);
       }
     } else if (targetKey === currentKey) {
       const created = {
@@ -2072,19 +2098,8 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     root.style.setProperty('--print-hour-portrait', `${landscapeHourMm.toFixed(2)}mm`);
     root.style.setProperty('--print-hour-flex', `${landscapeHourMm.toFixed(2)}mm`);
   }
-  function savedPlannerDays() {
-    const days = new Map();
-    try {
-      store.keys('daily-planner:')
-        .filter(key => /^daily-planner:\d{4}-\d{2}-\d{2}$/.test(key))
-        .forEach(key => {
-          const day = key.slice('daily-planner:'.length);
-          try { days.set(day, normalizeDayState(store.readJSON(key), day)); } catch (_) {}
-        });
-    } catch (_) {}
-    days.set(ymd(), state);
-    return [...days.entries()].sort((a, b) => b[0].localeCompare(a[0]));
-  }
+  // Every saved day, newest first, the day on screen as it is in memory (src/state/saved-days.js): read, never changed.
+  function savedPlannerDays() { return savedDays.read({ liveDay: ymd(), liveState: state }); }
 
   function searchPlanner(query) {
     return searchPlannerDays({
@@ -2260,14 +2275,11 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     };
     reader.readAsText(file);
   }
+  // What the browser refused to store (its storage full) is counted and said: an import is never told complete when it isn't.
   function confirmImport() {
     if (!pendingImport) return;
     try {
-      Object.entries(pendingImport.days || {}).forEach(([day, value]) => {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
-        store.writeJSON(`daily-planner:${day}`, value);
-      });
-      if (pendingImport.settings && typeof pendingImport.settings === 'object') store.writeJSON('daily-planner:settings', withoutRetiredSettings(pendingImport.settings));
+      const report = importReport(inBulk(() => importPlannerBackup(store, pendingImport, { budget: storageBudget() })));
       pendingImport = null;
       reloadSettings();
       closeModal(qs('[data-import-modal]'));
@@ -2275,6 +2287,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
       renderCategorySettings();
       renderSettingsHours();
       checkStorageSoon();
+      if (!report.complete) alert(report.text);
     } catch (_) {
       alert('The browser blocked the import. Check that site storage is allowed.');
     }
@@ -2304,8 +2317,8 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   function resetPlannerData() {
     clearTimeout(saveTimer);
     clearTimeout(settingsTimer);
-    store.removePrefix('daily-planner:');
-    store.withoutMutationTracking(() => store.remove('daily-planner-ui:trophies-seen'));
+    inBulk(() => store.removePrefix('daily-planner:'));
+    store.withoutMutationTracking(() => { store.remove('daily-planner-ui:trophies-seen'); store.remove(IMPORT_ROOM_KEY); });
     progressCache.model = null;
     reloadSettings();
     date = atNoon(new Date());
@@ -2370,12 +2383,9 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     return ymd(targetDate) === ymd(date) ? state : loadStateForDate(targetDate);
   }
 
+  // False when the browser refused it (its storage full): moves and sync pulls depend on it.
   function persistStateForDate(targetDate, targetState) {
-    store.writeJSON(`daily-planner:${ymd(targetDate)}`, targetState);
-  }
-
-  function candidateTriaged(dayState, key) {
-    return (dayState.triaged || []).some(value => value === `${key}:later` || value === `${key}:drop` || value.startsWith(`${key}@`));
+    return store.writeJSON(`daily-planner:${ymd(targetDate)}`, targetState);
   }
 
   function candidateKey(candidate) { return candidate.key || `${candidate.kind}:${candidate.item?.id || candidate.block?.id || ''}`; }
@@ -2396,28 +2406,6 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
       const key = `block:${block.id}`;
       if (sourceForBlock(block) || isBlockDone(block) || candidateTriaged(state, key)) return;
       candidates.push({ key, kind: 'block', block, originDay: ymd() });
-    });
-    return candidates;
-  }
-
-  function candidatesForSavedDay(dayKey, dayState) {
-    const candidates = [];
-    const linked = (type, id) => dayState.blocks.find(block => block.linkedType === type && block.linkedId === id) || null;
-    dayState.priorities.forEach((item, index) => {
-      const key = `priority:${item.id}`;
-      if (!item.text.trim() || item.done || candidateTriaged(dayState, key)) return;
-      candidates.push({ key, kind: 'priority', item, index, block: linked('priority', item.id), originDay: dayKey });
-    });
-    dayState.tasks.forEach((item, index) => {
-      const key = `task:${item.id}`;
-      if (!item.text.trim() || item.done || candidateTriaged(dayState, key)) return;
-      candidates.push({ key, kind: 'task', item, index, block: linked('task', item.id), originDay: dayKey });
-    });
-    dayState.blocks.forEach(block => {
-      if (block.linkedType && block.linkedId) return;
-      const key = `block:${block.id}`;
-      if (block.done || candidateTriaged(dayState, key)) return;
-      candidates.push({ key, kind: 'block', block, originDay: dayKey });
     });
     return candidates;
   }
@@ -2533,6 +2521,8 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     endDayLessonDraft = state.lesson || '';
     { const yd = horizonYearData(date.getFullYear()); const qi = habitQuarterForMonth(date.getMonth()); endDayHabitDraft = !!(yd.habits[qi]?.trim() && habitChecked(yd, ymd(date), qi)); }
     renderEndDayReview();
+    const error = qs('[data-end-day-error]');
+    if (error) error.hidden = true;
     openModal(qs('[data-end-day-modal]'));
   }
 
@@ -2713,66 +2703,81 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   function completeEndDay(e) {
     e.preventDefault();
     if (ymd(date) > ymd(new Date())) return;
-    const candidates = endDayCandidates();
+    // Closing is built on copies of the day and the settings, and shown only once all of it is stored (1.39.4): the
+    // helpers below read and change `state` and `settings`, which name the copies meanwhile.
+    const live = { state, settings };
+    const closed = { state: JSON.parse(JSON.stringify(state)), settings: JSON.parse(JSON.stringify(settings)) };
     const targetStates = new Map();
-    const getTargetState = targetKey => {
-      if (!targetStates.has(targetKey)) targetStates.set(targetKey, loadStateForDate(dateFromKey(targetKey)));
-      return targetStates.get(targetKey);
-    };
-    const triaged = [];
     const carried = [];
-    const transfers = [];
-    candidates.forEach(candidate => {
-      const key = candidateKey(candidate);
-      const action = endActionFor(key);
-      if (action.mode === 'later') {
-        const openId = addCandidateToLater(candidate);
-        triaged.push(`${key}:later`);
-        transfers.push({ sourceKey: key, mode: 'later', openId });
-        return;
-      }
-      if (action.mode === 'drop') {
-        triaged.push(`${key}:drop`);
-        transfers.push({ sourceKey: key, mode: 'drop' });
-        return;
-      }
-      const targetKey = action.dateKey || ymd(endDayTargetDate || defaultEndDayTarget());
-      const targetDate = dateFromKey(targetKey);
-      const targetState = getTargetState(targetKey);
-      let destination = null;
-      let blockCopy = null;
-      if (candidate.kind === 'block') blockCopy = copyBlockToTarget(candidate.block, targetState, null, targetDate, candidate.originDay);
-      else {
-        destination = carryItemToTarget(candidate, targetState);
-        blockCopy = copyBlockToTarget(candidate.block, targetState, destination, targetDate, candidate.originDay);
-      }
-      triaged.push(`${key}@${targetKey}`);
-      carried.push({ key, targetKey });
-      transfers.push({ sourceKey: key, mode: 'date', targetKey, targetType: destination?.type || '', targetId: destination?.id || '', targetCreated: !!destination?.created, blockId: blockCopy?.id || '', blockCreated: !!blockCopy?.created });
-    });
-
-    state.memory = endDayMemoryDraft.trim();
-    state.lesson = endDayLessonDraft.trim();
-    {
-      const yd = horizonYearData(date.getFullYear());
-      const qi = habitQuarterForMonth(date.getMonth());
-      if (yd.habits[qi]?.trim()) {
-        const current = new Set(Array.isArray(yd.habitChecks?.[ymd(date)]) ? yd.habitChecks[ymd(date)] : []);
-        if (endDayHabitDraft) current.add(qi); else current.delete(qi);
-        yd.habitChecks[ymd(date)] = [...current].sort();
-      }
-    }
-    state.endedAt = new Date().toISOString();
-    settings.closeDayCount = Math.max(0, Number(settings.closeDayCount) || 0) + 1;
-    trackEvent('day_closed');
-    state.triaged = [...new Set([...(state.triaged || []), ...triaged])];
-    state.carriedForward = [...new Set([...(state.carriedForward || []), ...carried.map(item => `${item.key}@${item.targetKey}`)])];
-    state.closeTransfers = transfers;
+    state = closed.state;
+    settings = closed.settings;
     try {
-      store.writeJSON(storageKey(), state);
-      targetStates.forEach((targetState, targetKey) => persistStateForDate(dateFromKey(targetKey), targetState));
-      persistSettings();
-    } catch (_) {}
+      const candidates = endDayCandidates();
+      const getTargetState = targetKey => {
+        if (!targetStates.has(targetKey)) targetStates.set(targetKey, loadStateForDate(dateFromKey(targetKey)));
+        return targetStates.get(targetKey);
+      };
+      const triaged = [];
+      const transfers = [];
+      candidates.forEach(candidate => {
+        const key = candidateKey(candidate);
+        const action = endActionFor(key);
+        if (action.mode === 'later') {
+          const openId = addCandidateToLater(candidate);
+          triaged.push(`${key}:later`);
+          transfers.push({ sourceKey: key, mode: 'later', openId });
+          return;
+        }
+        if (action.mode === 'drop') {
+          triaged.push(`${key}:drop`);
+          transfers.push({ sourceKey: key, mode: 'drop' });
+          return;
+        }
+        const targetKey = action.dateKey || ymd(endDayTargetDate || defaultEndDayTarget());
+        const targetDate = dateFromKey(targetKey);
+        const targetState = getTargetState(targetKey);
+        let destination = null;
+        let blockCopy = null;
+        if (candidate.kind === 'block') blockCopy = copyBlockToTarget(candidate.block, targetState, null, targetDate, candidate.originDay);
+        else {
+          destination = carryItemToTarget(candidate, targetState);
+          blockCopy = copyBlockToTarget(candidate.block, targetState, destination, targetDate, candidate.originDay);
+        }
+        triaged.push(`${key}@${targetKey}`);
+        carried.push({ key, targetKey });
+        transfers.push({ sourceKey: key, mode: 'date', targetKey, targetType: destination?.type || '', targetId: destination?.id || '', targetCreated: !!destination?.created, blockId: blockCopy?.id || '', blockCreated: !!blockCopy?.created });
+      });
+
+      state.memory = endDayMemoryDraft.trim();
+      state.lesson = endDayLessonDraft.trim();
+      {
+        const yd = horizonYearData(date.getFullYear());
+        const qi = habitQuarterForMonth(date.getMonth());
+        if (yd.habits[qi]?.trim()) {
+          const current = new Set(Array.isArray(yd.habitChecks?.[ymd(date)]) ? yd.habitChecks[ymd(date)] : []);
+          if (endDayHabitDraft) current.add(qi); else current.delete(qi);
+          yd.habitChecks[ymd(date)] = [...current].sort();
+        }
+      }
+      state.endedAt = new Date().toISOString();
+      settings.closeDayCount = Math.max(0, Number(settings.closeDayCount) || 0) + 1;
+      state.triaged = [...new Set([...(state.triaged || []), ...triaged])];
+      state.carriedForward = [...new Set([...(state.carriedForward || []), ...carried.map(item => `${item.key}@${item.targetKey}`)])];
+      state.closeTransfers = transfers;
+    } finally {
+      state = live.state;
+      settings = live.settings;
+    }
+    // Where items go first (the days they are carried to, then the settings: Later, the habit), the closed day last.
+    // Refused (storage full): nothing changes, in storage or on screen, and the day stays open with every item where it was.
+    const days = [...targetStates].map(([targetKey, targetState]) => [`daily-planner:${targetKey}`, targetState]);
+    const apply = () => { Object.assign(state, closed.state); Object.assign(settings, closed.settings); };
+    if (!commitInOrder([...days, ['daily-planner:settings', closed.settings], [storageKey(), closed.state]], apply)) {
+      const error = qs('[data-end-day-error]');
+      if (error) { error.textContent = `${FULL_TITLE} The day stays open, and every item where it was.`; error.hidden = false; }
+      return;
+    }
+    trackEvent('day_closed');
     personalSyncFeature?.syncNow?.({ interactive: false, reason: 'close-day' });
     closeModal(qs('[data-end-day-modal]'));
     updateEndDayButton();
@@ -3144,27 +3149,8 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   // Journal and Unresolved work
   // ---------------------------------------------------------------------------
 
-  function candidateAlreadyTransferred(candidate, sourceDay) {
-    const text = (candidate.kind === 'block' ? candidate.block?.title : candidate.item?.text || '').trim().toLocaleLowerCase();
-    if (!text) return false;
-    if ((settings.openWork || []).some(item => item.originDay === sourceDay && item.text.trim().toLocaleLowerCase() === text)) return true;
-    return savedPlannerDays().some(([dayKey, dayState]) => {
-      if (dayKey <= sourceDay) return false;
-      const items = [...(dayState.priorities || []), ...(dayState.tasks || [])];
-      if (items.some(item => item.originDay === sourceDay && item.text.trim().toLocaleLowerCase() === text && Number(item.carriedCount) > 0)) return true;
-      return (dayState.blocks || []).some(block => block.originDay === sourceDay && block.title.trim().toLocaleLowerCase() === text && Number(block.carriedCount) > 0);
-    });
-  }
-
-  function needsAttentionEntries() {
-    const todayKey = ymd(new Date());
-    const entries = [];
-    savedPlannerDays().forEach(([dayKey, dayState]) => {
-      if (dayKey >= todayKey) return;
-      candidatesForSavedDay(dayKey, dayState).forEach(candidate => { if (!candidateAlreadyTransferred(candidate, dayKey)) entries.push(candidate); });
-    });
-    return entries.sort((a, b) => b.originDay.localeCompare(a.originDay));
-  }
+  // Unresolved (src/features/unresolved.js): the saved days read once per list, not once per candidate (1.39.4).
+  function needsAttentionEntries() { return needsAttention(savedPlannerDays(), { todayKey: ymd(new Date()), openWork: settings.openWork || [] }); }
 
   function pendingPlanKey({ mode, origin = '', key = '', openId = '' }) {
     return mode === 'later' ? `later:${openId}` : `need:${origin}:${key}`;
@@ -3230,7 +3216,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   }
 
   function findCandidateInDay(dayKey, key) {
-    const dayState = dayKey === ymd() ? state : loadStateForDate(dateFromKey(dayKey));
+    const dayState = dayToEdit(dayKey);
     return { dayState, candidate: candidatesForSavedDay(dayKey, dayState).find(item => item.key === key) || null };
   }
 
@@ -3240,12 +3226,16 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     persistStateForDate(dateFromKey(dayKey), dayState);
   }
 
+  // Save: into Later (the settings) first, then off its day; refused (storage full), neither.
   function moveNeedToLater(dayKey, key) {
     const { dayState, candidate } = findCandidateInDay(dayKey, key);
     if (!candidate) return;
+    const later = settings.openWork;
+    settings.openWork = [...(later || [])];
     addCandidateToLater(candidate);
-    markCandidateTriaged(dayKey, dayState, key, ':later');
-    persistSettings(); renderOpenWork(); checkStorageSoon();
+    dayState.triaged = [...new Set([...(dayState.triaged || []), `${key}:later`])];
+    if (!commitInOrder([['daily-planner:settings', settings], [`daily-planner:${dayKey}`, dayState]], () => { if (dayKey === ymd()) state = dayState; })) settings.openWork = later;
+    renderOpenWork(); checkStorageSoon();
   }
 
   function dropOpenWork(button) {
@@ -3273,12 +3263,17 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     }, { minKey: ymd(new Date()) });
   }
 
+  // Plan: onto its day first, then off Later (the settings) or off its own day; refused (storage full), neither.
   function applyOpenWorkPlan(plan) {
     const targetDate = dateFromKey(plan.dateKey);
-    const targetState = loadStateForDate(targetDate);
+    const targetKey = ymd(targetDate);
+    const targetState = dayToEdit(targetKey);
+    const writes = [[`daily-planner:${targetKey}`, targetState]];
+    let later = null;
+    let source = null;
     if (plan.mode === 'later') {
       const item = settings.openWork.find(entry => entry.id === plan.openId);
-      if (!item) return false;
+      if (!item) return 'none';
       const priorCarryCount = Math.max(0, Number(item.carriedCount) || 0);
       const sourceCarryCount = Math.max(0, priorCarryCount - 1);
       const candidate = item.kind === 'block'
@@ -3286,25 +3281,36 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
         : { kind: item.kind === 'priority' ? 'priority' : 'task', index: item.kind === 'priority' ? 1 : 0, item: { id: uid('open-source'), text: item.text, done: false, carriedCount: sourceCarryCount, originDay: item.originDay }, block: item.block ? { ...item.block, carriedCount: sourceCarryCount, originDay: item.originDay } : null, originDay: item.originDay };
       if (candidate.kind === 'block') copyBlockToTarget(candidate.block, targetState, null, targetDate, candidate.originDay);
       else { const destination = carryItemToTarget(candidate, targetState); copyBlockToTarget(candidate.block, targetState, destination, targetDate, candidate.originDay); }
-      settings.openWork = settings.openWork.filter(entry => entry.id !== item.id);
-      persistSettings();
+      later = settings.openWork.filter(entry => entry.id !== item.id);
+      writes.push(['daily-planner:settings', { ...settings, openWork: later }]);
     } else {
       const { dayState, candidate } = findCandidateInDay(plan.origin, plan.key);
-      if (!candidate) return false;
+      if (!candidate) return 'none';
       if (candidate.kind === 'block') copyBlockToTarget(candidate.block, targetState, null, targetDate, candidate.originDay);
       else { const destination = carryItemToTarget(candidate, targetState); copyBlockToTarget(candidate.block, targetState, destination, targetDate, candidate.originDay); }
-      markCandidateTriaged(plan.origin, dayState, plan.key, `@${ymd(targetDate)}`);
+      dayState.triaged = [...new Set([...(dayState.triaged || []), `${plan.key}@${targetKey}`])];
+      source = [plan.origin, dayState];
+      writes.push([`daily-planner:${plan.origin}`, dayState]);
     }
-    persistStateForDate(targetDate, targetState);
-    return true;
+    const apply = () => {
+      if (later) settings.openWork = later;
+      if (targetKey === ymd()) Object.assign(state, targetState);
+      if (source?.[0] === ymd()) Object.assign(state, source[1]);
+    };
+    return commitInOrder(writes, apply) ? 'planned' : 'refused';
   }
 
+  // A plan the browser refused to store stays ready here, and says so.
   function confirmOpenWorkPlans() {
     const plans = [...openWorkPendingPlans.values()];
     if (!plans.length) return;
-    plans.forEach(applyOpenWorkPlan);
+    const refused = plans.filter(plan => applyOpenWorkPlan(plan) === 'refused');
     openWorkPendingPlans.clear();
+    refused.forEach(plan => openWorkPendingPlans.set(pendingPlanKey(plan), plan));
     renderOpenWork();
+    const copy = qs('[data-open-work-pending-copy]');
+    if (refused.length && copy) copy.textContent = `${FULL_TITLE} ${refused.length === 1 ? 'This plan wasn’t saved: its item stays' : `${refused.length} plans weren’t saved: their items stay`} here.`;
+    if (refused.length < plans.length) render();
     checkStorageSoon();
   }
 

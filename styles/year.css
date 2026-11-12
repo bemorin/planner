@@ -774,7 +774,7 @@ html[data-paint="sunset"],
    journal and the trophies. Sheet-scoped and outside @media print; page-level
    rules stay in print.css. */
 
-/* 190mm still fits A4 (198mm) and Letter (204mm) landscape inside the page margins. */
+/* 190mm, as every sheet (styles/print.css): it fits A4 (198mm) and Letter (204mm) landscape inside the page margins. */
 .print-sheet--review {
   --print-sheet-height: 190mm;
   --rv-ink: #1c1a17; --rv-muted: #67615a; --rv-faint: #98928a; --rv-hair: #e3ded6; --rv-soft: #f2eee8; --rv-box: #cdc6bc;

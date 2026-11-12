@@ -107,7 +107,7 @@ test('the Day sheet can be measured on screen: its rules sit outside @media prin
   const daily = css.indexOf('.print-daily-layout {');
   const firstPrint = css.indexOf('@media print {', css.indexOf('/* Sheet-only classes'));
   assert.ok(daily > 0 && daily < firstPrint, 'the Daily rules come before the next @media print block');
-  assert.match(css, /\.print-sheet--day\.is-measuring \{[^}]*width: 267\.4mm; height: 178mm;[^}]*visibility: hidden;/);
+  assert.match(css, /\.print-sheet--day\.is-measuring \{[^}]*width: 267\.4mm; height: var\(--print-sheet-height\);[^}]*visibility: hidden;/);
   assert.match(css, /\.print-plan-column\.is-tight \{ grid-template-rows: auto auto auto auto minmax\(22mm, 1fr\); \}/);
   assert.match(css, /\.print-tasks\.is-two \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
   assert.match(css, /\.print-notes p \{[^}]*overflow: hidden;/, 'a note stays in its box');
@@ -126,4 +126,22 @@ test('year in review: a streak of 100 days or more widens the figures’ first c
   assert.match(css, /\.rv-figures--wide \.rv-fig \{ grid-template-columns: 27mm minmax\(0, 1fr\); \}/);
   assert.ok(css.indexOf('.rv-figures--wide .rv-fig') < css.indexOf('.rv--quiet .rv-fig {'), 'a quiet year keeps its own columns');
   assert.match(read('src/features/year-review.js'), /<div class="rv-figures\$\{review\.bestStreak >= 100 \? ' rv-figures--wide' : ''\}">/);
+});
+
+test('every sheet is 190mm, as the year, quarter and review sheets shipped, and Day and Week grow with it', () => {
+  const print = read('styles/print.css');
+  assert.match(print, /\.print-sheet \{ --print-sheet-height: 190mm; \}/, 'the one height');
+  assert.match(print, /height: var\(--print-sheet-height\) !important;\n\s*min-height: 0 !important;\n\s*max-height: var\(--print-sheet-height\) !important;/);
+  assert.ok(190 <= 210 - 2 * 6 - 8, 'inside A4 landscape (210mm less the 6mm margins), 8mm to spare for a browser that ignores @page; Letter is taller');
+  // Day: the plan column and the schedule's hours take the extra height (the notes box is the column's 1fr row).
+  assert.match(print, /\.print-daily-layout \{\n {2}height: calc\(var\(--print-sheet-height\) - 20mm\);/);
+  assert.match(print, /\.print-schedule-grid \{\n {2}height: calc\(var\(--print-sheet-height\) - 31mm\);/);
+  assert.match(print, /\.print-plan-column \{[^}]*grid-template-rows: auto auto auto auto minmax\(34mm, 1fr\);/);
+  // Week: its hours.
+  assert.match(print, /\.print-week-body \{\n {4}position: relative;\n {4}height: calc\(var\(--print-sheet-height\) - 36mm\);/);
+  // Year, quarter and review: the same full page.
+  assert.match(print, /\.print-sheet--year \{ --print-sheet-height: 190mm;/);
+  assert.match(read('styles/quarter.css'), /\.print-sheet--quarter \{\n {2}--print-sheet-height: 190mm;/);
+  assert.match(read('styles/year.css'), /\.print-sheet--review \{\n {2}--print-sheet-height: 190mm;/);
+  assert.doesNotMatch(print + read('styles/quarter.css') + read('styles/year.css'), /--print-sheet-height: (?!190mm)|(?:height|max-height): 178mm/, 'no sheet at another height');
 });

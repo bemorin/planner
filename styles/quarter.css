@@ -339,7 +339,7 @@
    Paper, so always light colours: the palette chosen on this device, the review's
    type scale. Sheet-scoped and outside @media print; page rules stay in print.css. */
 
-/* 190mm still fits A4 (198mm) and Letter (204mm) landscape inside the page margins. */
+/* 190mm, as every sheet (styles/print.css): it fits A4 (198mm) and Letter (204mm) landscape inside the page margins. */
 .print-sheet--quarter {
   --print-sheet-height: 190mm;
   --qv-ink: #1c1a17; --qv-muted: #67615a; --qv-faint: #98928a; --qv-hair: #e3ded6; --qv-soft: #f2eee8; --qv-box: #cdc6bc;

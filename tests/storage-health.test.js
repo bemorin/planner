@@ -151,7 +151,8 @@ test('a held mark whose record is synced or forgotten meanwhile is dropped, neve
   // Another change later: the stale deletion is not written over the restored day.
   ledger.recordMutation({ type: 'set', key: 'daily-planner:2026-11-09' });
   const stored = JSON.parse(storage.getItem(LEDGER_KEY)).records['day:2026-11-11'];
-  assert.deepEqual([stored.deletedAt, stored.dirtyAt, stored.lastSyncedHash], [null, null, 'h2']);
+  // Kept compact (1.39.4): no deletion, nothing waiting, only the base (tests/sync-ledger.test.js).
+  assert.deepEqual(stored, { lastSyncedHash: 'h2' });
   // Forgotten, the same.
   storage.quota = storage.used();
   assert.equal(ledger.recordMutation({ type: 'set', key: OTHER_DAY }), false);
@@ -314,7 +315,7 @@ test('the 80% warning: in the header once a day, until it is opened; again the n
 
 test('the planner wires it: every write reported, Data on this device shows the real state and how full storage is', () => {
   const app = read('app.js');
-  assert.match(app, /onWrite: result => \{ saveHealth\.note\(result\); if \(result\.ok && result\.tracked\) retryRefused\(\); \}/);
+  assert.match(app, /onWrite: result => \{ if \(result\.ok \|\| !bulkWrites\) saveHealth\.note\(result\); if \(result\.ok && result\.tracked\) retryRefused\(\); \}/);
   assert.match(app, /const marked = syncLedger\.recordMutation\(mutation\);\n\s*if \(marked !== null\) saveHealth\.note\(\{ key: LEDGER_KEY, ok: marked \}\);/);
   assert.match(app, /function load\(\) \{\n[^\n]*\n\s*saveHealth\.reloaded\(\);/);
   assert.match(app, /storageSafetyLine\(\{ failing: saveHealth\.failing, syncMarkRefused: saveHealth\.syncMarkRefused, syncInUse: syncInUse\(\), available: !unavailable, level: storageNow \}\)/);

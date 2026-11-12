@@ -251,6 +251,10 @@
 
 .share-toggle input:checked + .share-toggle__track::after { transform: translateX(14px); }
 
+/* On, the knob takes the colour that stands out from the palette's: white on the light theme's deep paint, dark on
+   the dark theme's light one (1.39.4; a fixed white was 2.5:1 there). */
+.share-toggle input:checked + .share-toggle__track::after { background: var(--surface-strong); }
+
 .share-toggle__text { min-width: 0; display: grid; gap: 2px; }
 
 .share-toggle__text b { color: var(--ink); font-size: .78rem; font-weight: 650; line-height: 1.35; }

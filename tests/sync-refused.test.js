@@ -136,3 +136,17 @@ test('Personal sync says so: in the header alert and on its card', () => {
   assert.equal(refusedNote(1), 'This browser is out of space for your planner: 1 change from your other devices couldn’t be stored here. It stays in your synced copy, and the next sync fetches it again.');
   assert.match(refusedNote(3), /: 3 changes from your other devices couldn’t be stored here\. They stay in your synced copy, and the next sync fetches them again\.$/);
 });
+
+test('a recovery snapshot waits for its backup (1.40): an asynchronous backup is saved as the backup, never as a promise', async () => {
+  const saved = [];
+  const recoveryStore = { save: async (data, reason) => { saved.push({ data, reason }); return { reason }; } };
+  const a = device('A');
+  const b = device('B');
+  const cloud = plainCloud();
+  b.store.writeJSON(DAY, { focus: 'from B' });
+  await b.engine.sync(cloud.provider);
+  const engine = createSyncEngine({ store: a.store, ledger: a.ledger, recoveryStore });
+  const result = await engine.sync(cloud.provider, { buildBackup: async () => { await new Promise(resolve => setTimeout(resolve, 5)); return { app: 'Daily Planner', days: { kept: true } }; } });
+  assert.deepEqual(result.pulled, [RECORD]);
+  assert.deepEqual(saved, [{ data: { app: 'Daily Planner', days: { kept: true } }, reason: 'before-remote-sync' }]);
+});

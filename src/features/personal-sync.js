@@ -11,7 +11,7 @@ import { createRecoveryStore } from '../sync/recovery-store.js';
 import { createSyncEngine } from '../sync/engine.js';
 import { createSyncScheduler } from '../sync/scheduler.js';
 import { whenPlannerShown } from './app-entrance.js';
-import { DROPBOX_BLOCKED_LINE, MARKS, RECONNECT_ICON, cloudName, conflictSummary, panelMarkup, passphraseProblem, relativeSyncLabel, refusedNote, returnNote, sealLineMarkup, storageSyncLine, strengthMarkup, syncLead, syncView } from './personal-sync-view.js';
+import { DROPBOX_BLOCKED_LINE, MARKS, RECONNECT_ICON, archiveSyncNote, cloudName, conflictSummary, panelMarkup, passphraseProblem, relativeSyncLabel, refusedNote, returnNote, sealLineMarkup, storageSyncLine, strengthMarkup, syncLead, syncView } from './personal-sync-view.js';
 
 /**
  * Settings → Personal sync: the person's own Google Drive or Dropbox (1.38),
@@ -458,11 +458,11 @@ export function createPersonalSyncFeature({
    * drawn again whenever any attempt applied records from the copy, the first one included: the engine applies
    * them before it writes, and agrees on them in the ledger, so the second attempt never takes them for changes.
    */
-  async function runEngineSync(conflictResolution = null) {
+  async function runEngineSync(conflictResolution = null, { restoreMissing = false } = {}) {
     let applied = false;
     const once = async () => {
       try {
-        const result = await engine.sync(transport(), { buildBackup, conflictResolution });
+        const result = await engine.sync(transport(), { buildBackup, conflictResolution, restoreMissing });
         if (result?.pulled?.length) applied = true;
         return result;
       } catch (error) {
@@ -517,6 +517,14 @@ export function createPersonalSyncFeature({
     let finished = false;
     try {
       await ready;
+      // Every day this browser keeps, readable first (1.40, src/state/day-store.js): a day not loaded yet, or that can't
+      // be read, would be taken for deleted and removed from the copy. Sync waits, and says why.
+      // Lost (the database found empty), only a sync asked for runs: it brings back from the copy what is missing here.
+      const archive = await store.ready?.();
+      if (archive === 'unavailable' || (archive === 'lost' && automatic)) {
+        infoNote = archiveSyncNote(archive);
+        return null;
+      }
       await flushLocal?.();
 
       if (authorizing) {
@@ -527,7 +535,9 @@ export function createPersonalSyncFeature({
         cloud.rememberAccount?.();
       }
 
-      const result = await runEngineSync(conflictResolution);
+      const result = await runEngineSync(conflictResolution, { restoreMissing: archive === 'lost' });
+      // Lost, and that sync brought back all the copy has (nothing refused): what is still missing is gone for good.
+      if (archive === 'lost' && result?.status === 'ok' && !result.refused?.length) await store.settle?.();
       copyFormat = transport().format;
       if (result.status === 'ok') {
         refusedCount = result.refused?.length || 0;

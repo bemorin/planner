@@ -100,3 +100,25 @@ test('online, a page is kept for offline use (cloned before the page reads it); 
   assert.equal(context.keepable(new URL('/admin/', SCOPE)), false);
   // 1.38.1: no partner statement is served while sales are paused, so the worker no longer names its address.
 });
+
+test('the roll call (1.40): the worker counts the planner’s windows, controlled or not, and says its version', async () => {
+  const listeners = {};
+  const windows = ['https://planner.bemorin.com/', 'https://planner.bemorin.com/index.html?help', 'https://planner.bemorin.com/welcome/', 'https://planner.bemorin.com/legal/', 'about:blank'];
+  const asked = [];
+  const context = {
+    self: { addEventListener: (type, listener) => { listeners[type] = listener; }, location: new URL('sw.js', SCOPE), registration: { scope: SCOPE }, clients: { matchAll: async options => { asked.push(options); return windows.map(url => ({ url })); } } },
+    caches: { match: async () => undefined, open: async () => ({ put: async () => {} }) },
+    fetch: async () => { throw new TypeError('Failed to fetch'); },
+    Response,
+    URL
+  };
+  vm.runInNewContext(source, context);
+  const answers = [];
+  let waited;
+  listeners.message({ data: { type: 'planner-windows' }, ports: [{ postMessage: answer => answers.push(answer) }], waitUntil: promise => { waited = promise; } });
+  await waited;
+  assert.deepEqual(JSON.parse(JSON.stringify(asked)), [{ type: 'window', includeUncontrolled: true }]);
+  assert.deepEqual(JSON.parse(JSON.stringify(answers)), [{ type: 'planner-windows', windows: 2, version: source.match(/const CACHE = 'daily-planner-([\d.]+)';/)[1] }]);
+  // Any other message is left alone.
+  listeners.message({ data: { type: 'something-else' }, ports: [], waitUntil: () => { throw new Error('not for the roll call'); } });
+});

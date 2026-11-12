@@ -245,6 +245,30 @@ export function createSyncLedger(storage = localStorage, { now = () => new Date(
 
   const dirtyEntries = () => Object.entries(records()).filter(([, record]) => !!record?.dirtyAt);
 
+  /**
+   * The days this ledger knows (1.40, src/state/day-store.js), from one read: `live`, days with an entry (written
+   * here, pulled, or agreed on with the copy) and no tombstone, which must exist on this device; `deleted`, days marked
+   * deleted. Sets of YYYY-MM-DD.
+   */
+  const dayMarks = () => {
+    const live = new Set();
+    const deleted = new Set();
+    for (const [recordId, record] of Object.entries(records())) {
+      if (!recordId.startsWith('day:') || !record) continue;
+      (record.deletedAt ? deleted : live).add(recordId.slice(4));
+    }
+    return { live, deleted };
+  };
+  const deletedDays = () => dayMarks().deleted;
+
+  /** Forgets the entries of `days` (YYYY-MM-DD) in one write: days gone for good, which nothing is to sync any more. */
+  const forgetDays = days => {
+    const ids = [...days].map(day => `day:${day}`);
+    if (!ids.length) return false;
+    ids.forEach(id => unwritten.delete(id));
+    try { return change(ledger => { ids.forEach(id => { delete ledger.records[id]; }); }); } catch (_) { return false; }
+  };
+
   const hasDirty = () => dirtyEntries().length > 0;
 
   const oldestDirtyAt = () => {
@@ -394,6 +418,9 @@ export function createSyncLedger(storage = localStorage, { now = () => new Date(
     deferMarks,
     undoMark,
     dirtyEntries,
+    dayMarks,
+    deletedDays,
+    forgetDays,
     hasDirty,
     oldestDirtyAt,
     markSynced,

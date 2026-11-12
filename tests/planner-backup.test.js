@@ -76,7 +76,7 @@ test('a 1.38 backup imports into 1.39: Horizon, misogi and quarter check-ins com
   // The planner's own Import does the same (importPlannerBackup(), 1.39.4), and accepts a 1.38 file as it is.
   const app = read('app.js');
   assert.match(app, /if \(parsed && parsed\.app === 'Daily Planner' && parsed\.days && typeof parsed\.days === 'object'\) \{/);
-  assert.match(app, /importReport\(inBulk\(\(\) => importPlannerBackup\(store, pendingImport, \{ budget: storageBudget\(\) \}\)\)\)/);
+  assert.match(app, /importReport\(await store\.importDays\(backup, \{ budget: storageBudget\(\), bulk: inBulk \}\)\)/);
   assert.match(read('src/state/planner-backup.js'), /store\.writeJSON\('daily-planner:settings', withoutRetiredSettings\(backup\.settings\)\)/);
   const planner = createLocalStore(new MemoryStorage());
   assert.deepEqual(importPlannerBackup(planner, backup138()), { days: 1, stored: 1, refused: [], settings: 'stored' });

@@ -133,12 +133,13 @@ test('an import that fits: everything stored, each day replacing the one of its 
 
 test('the planner says it: in the import’s alert, its marks written once, Personal sync told once', () => {
   const app = read('app.js');
-  assert.match(app, /const report = importReport\(inBulk\(\(\) => importPlannerBackup\(store, pendingImport, \{ budget: storageBudget\(\) \}\)\)\);/);
+  // 1.40: through the day store, which places older days in this browser's database (src/state/day-store.js importDays()).
+  assert.match(app, /const report = importReport\(await store\.importDays\(backup, \{ budget: storageBudget\(\), bulk: inBulk \}\)\);/);
   assert.match(app, /onWrite: result => \{ if \(result\.ok \|\| !bulkWrites\) saveHealth\.note\(result\);/, 'what it couldn’t store, Import says itself');
   assert.match(app, /if \(!report\.complete\) alert\(report\.text\);/);
   assert.match(app, /try \{ const \{ value, marked \} = syncLedger\.deferMarks\(fn\); if \(marked !== null\) saveHealth\.note\(\{ key: LEDGER_KEY, ok: marked \}\); return value; \} finally \{ bulkWrites = false; personalSyncFeature\?\.noteLocalChange\?\.\(\); \}/);
   assert.match(app, /if \(!bulkWrites\) personalSyncFeature\?\.noteLocalChange\?\.\(\);/);
-  assert.match(app, /inBulk\(\(\) => store\.removePrefix\('daily-planner:'\)\);/, 'Reset local data: one ledger write too');
+  assert.match(app, /await store\.clearAll\('daily-planner:', \{ bulk: inBulk \}\);/, 'Reset local data: one ledger write too (1.40: both homes)');
   // One write of the ledger for the whole import.
   const p = planner(Infinity);
   let writes = 0;

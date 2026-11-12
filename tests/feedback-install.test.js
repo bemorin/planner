@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { featureVersion, migrateFeedbackState, PROMPT_RULES, QUOTE_NAME_MAX, shouldPromptFeedback } from '../src/features/feedback.js';
-import { WHATS_NEW, whatsNewItems } from '../src/features/whats-new.js';
+import { featureVersion, feedbackRelease, migrateFeedbackState, PROMPT_RULES, QUOTE_NAME_MAX, shouldPromptFeedback } from '../src/features/feedback.js';
+import { QUIET_RELEASES, WHATS_NEW, whatsNewItems } from '../src/features/whats-new.js';
 import { installMode } from '../src/features/install.js';
 import { APP_VERSION } from '../src/config.js';
 
@@ -60,7 +60,19 @@ test('what’s new is short and belongs to a feature release', () => {
   }
   // feedback.js shows the lines only when they belong to the app's own feature release: a version set in one place
   // and not the other would hide them, or show an older release's lines on a newer one.
-  assert.equal(WHATS_NEW.version, featureVersion(APP_VERSION), 'What’s new is the note of this feature release (APP_VERSION major.minor)');
+  // A release that changes nothing people see (1.40) says so in QUIET_RELEASES, and keeps an earlier note, never shown on it.
+  const release = featureVersion(APP_VERSION);
+  const order = version => version.split('.').map(Number).reduce((total, part) => total * 1000 + part, 0);
+  if (QUIET_RELEASES.includes(release)) assert.ok(order(WHATS_NEW.version) < order(release), `${release} is quiet: it keeps an earlier release’s note, which feedback.js never shows on it`);
+  else assert.equal(WHATS_NEW.version, release, 'What’s new is the note of this feature release (APP_VERSION major.minor)');
+  assert.deepEqual([...QUIET_RELEASES], ['1.40'], '1.40 moves older days to the archive once room is needed: invisible to nearly everyone');
+  // And feedback.js uses it: a quiet release is asked about as the release whose note it keeps.
+  assert.equal(feedbackRelease('1.40.0'), WHATS_NEW.version);
+  assert.equal(feedbackRelease('1.39.4'), '1.39');
+  const seenLong = { firstSeen: '2026-10-01T09:00:00.000Z' };
+  const now = new Date('2026-11-12T09:00:00.000Z');
+  assert.equal(shouldPromptFeedback({ releases: { '1.39': { ...seenLong, sent: '2026-10-20T09:00:00.000Z' } } }, { version: '1.40.0', now, closeDayCount: 9 }), false, 'answered about 1.39: not asked again on 1.40');
+  assert.equal(shouldPromptFeedback({ releases: { '1.39': seenLong } }, { version: '1.40.0', now, closeDayCount: 9 }), true, 'not asked yet: asked once, about 1.39');
 });
 
 test('what’s new in 1.39: everything free, open source, and GitHub Sponsors only where this copy has a sponsor page', () => {

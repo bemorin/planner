@@ -44,6 +44,19 @@ The last case is intentionally conservative. The app does not silently choose a 
 
 Removing a planner record is also a state change. The local sync ledger records a tombstone instead of forgetting that the record existed. The tombstone can then propagate to another device so deleted data does not reappear simply because the other device still had an older copy.
 
+## Older days in this browser's database (1.40)
+
+Once a planner needs more room than localStorage gives, its older days move to IndexedDB (`ARCHITECTURE.md`, “Older days in IndexedDB”). Sync doesn't see the difference:
+
+- **A move is no change.** The days keep the same keys and the very same strings, so the same parsed values and the same canonical hashes (`hash.js`), and a move marks nothing in the ledger. After a move, a sync pushes nothing, pulls nothing and calls no `provider.write`, over a plain copy and a sealed one alike (`tests/sync-archive.test.js`).
+- **Every day is read first.** `personal-sync.js` and the engine itself wait for `store.ready()` before anything is compared: an older day not loaded yet would look deleted here while it still has a base, and `push-local` would remove it from the copy. While the archive is `unavailable` (IndexedDB failing this session), no sync runs, and the card says why. While it is `lost` (days missing from its database: fewer records than the manifest counts, or a day the ledger knows absent from both homes), no automatic sync runs, and those days are read-only here; **Sync now** runs with `restoreMissing`: a record missing here that still has a base and is in the copy is pulled back, never removed from the copy. Only once such a sync has run and stored all it pulled (or the person chooses Carry on without them in Data on this device) is the rest let go: `settle()` forgets the ledger entries of what is still missing, so the next sync sees no base for those days and pulls them from the copy should it have them, rather than taking them for deletions. An import alone never settles it, unless nothing is missing after it: a backup older than the last days written would otherwise leave the newer ones to be removed from the copy.
+- **The local side of a sync runs alone.** From reading this device's records to applying the pulls, the engine holds the archive's lock (`store.exclusive()`: the Web Lock, or the lease), so no pass, pull or import in any tab moves days meanwhile, and days another tab has just moved are read first (`store.ready({ lock })`, the manifest's `gen`): a move never looks like a deletion here. The copy itself is read before and written after, outside the lock.
+- **Pulls are placed.** The engine applies through `store.placeMany()`: recent days, and older ones while localStorage stays within 40% of Safari's budget (each pulled record's base counted in), go to localStorage; the rest go straight to the archive, put and verified. An archived day changed on another device moves back to localStorage, as any edit does. Anything not stored lands in `refused`, so its base stays and it is pulled again next time.
+- **A day never leaves the copy without a tombstone from this browser.** A day record missing here that still has a base, and is in the copy without a tombstone, is always pulled back, with or without `restoreMissing` (`engine.js`): only a tracked removal (a tombstone in the ledger) deletes a day from the copy. So a day that vanished from this browser some other way (a freed day whose manifest write never landed, storage cleared by hand) comes back instead of being deleted everywhere.
+- **Edits and deletions of archived days sync as any other.** Editing one writes it to localStorage (a change, marked); a tombstone pulled for one removes it from both homes, and the ledger's tombstone removes it again at the next start should the database delete have been lost.
+- **A tab of 1.39** on the same device sees moved days as missing: its sync removes them from the copy (`push-local`, no tombstone). No device deletes them, and the next 1.40 sync on that device puts them back. Idle moves wait while such a tab is open.
+- **Recovery snapshots are awaited** (`recoveryStore.save(await buildBackup(), reason)`), and the first move in a browser takes one of its own (`before-archive`), which is kept outside the five-snapshot limit. Data on this device offers a **Download** for each, as a backup file Import reads.
+
 ## Clouds: one small interface
 
 Google Drive (`src/sync/google-drive.js`) and Dropbox (`src/sync/dropbox.js`) answer the same few calls (`src/sync/cloud.js`): `readText()` and `writeText()` of the one sync file, `hasUsableToken()`, `clearToken()`, and their sign-in (`popup` for Google, `redirect` for Dropbox). The seal (`src/sync/protection.js`) turns the file into the sync document and back, and the engine (`src/sync/engine.js`) merges records without knowing which cloud it is. The person picks one in Settings → Personal sync; a device syncs with one cloud at a time (`daily-planner-sync:cloud`). Moving to the other compares every record as at a first sync, so an older copy there can never overwrite newer days silently: what differs stops as a conflict.
@@ -147,9 +160,9 @@ If no usable token is available, those triggers do nothing interactive: local ed
 
 ## Recovery snapshots
 
-Before remote changes are applied, Daily Planner attempts to write a local recovery snapshot to IndexedDB. At most five snapshots are retained.
+Before remote changes are applied, Daily Planner attempts to write a local recovery snapshot to IndexedDB. At most five snapshots are retained, and since 1.40 the latest snapshot taken before older days first moved besides (`snapshotsToPrune()` in `src/sync/recovery-store.js`).
 
-These snapshots are a guard against a bad merge or accidental remote change. They are not a substitute for the explicit portable JSON backup, and they stay on the device.
+These snapshots are a guard against a bad merge or accidental remote change. They are not a substitute for the explicit portable JSON backup, and they stay on the device. Since 1.40, How it works → Data on this device lists them, each with a **Download** that saves it as a backup file Import backup reads.
 
 ## Deployment setup
 

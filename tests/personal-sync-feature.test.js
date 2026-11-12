@@ -67,10 +67,11 @@ function clouds(calls) {
   return { google, dropbox };
 }
 
-function setup({ connectedGoogle = false, dirty = false, lastSyncedAt = '2026-11-10T14:58:00.000Z', configured = ['google', 'dropbox'], clock = new Date('2026-11-10T16:20:00.000Z') } = {}) {
+function setup({ connectedGoogle = false, dirty = false, lastSyncedAt = '2026-11-10T14:58:00.000Z', configured = ['google', 'dropbox'], clock = new Date('2026-11-10T16:20:00.000Z'), archive = null } = {}) {
   const storage = new MemoryStorage();
   const ledger = createSyncLedger(storage, { now: () => new Date(clock) });
-  const store = createLocalStore(storage, { onMutation: ledger.recordMutation });
+  // `archive`: the day store's ready() and status() (1.40), over the same local store.
+  const store = { ...createLocalStore(storage, { onMutation: ledger.recordMutation }), ...(archive || {}) };
   if (connectedGoogle) storage.setItem('daily-planner-sync:google', JSON.stringify({ connected: true, fileId: 'f', lastSyncedAt, lastError: '' }));
   if (dirty) {
     store.writeJSON('daily-planner:2026-11-10', { focus: 'Waiting' });
@@ -238,4 +239,41 @@ test('while Settings is open, the card is drawn again every minute; closed, the 
   setup.observed();
   assert.equal(h.intervals[0].on, false);
   h.feature.destroy();
+});
+
+test('sync waits for the older days (1.40): it runs once they are read, and not at all while they can’t be', async () => {
+  let open;
+  const loading = new Promise(resolve => { open = resolve; });
+  const h = setup({ connectedGoogle: true, dirty: true, archive: { ready: () => loading, status: () => 'loading' } });
+  h.fakes.google.token = true;
+  h.fakes.google.until = Date.parse('2026-11-10T16:55:00.000Z');
+  const started = h.feature.load();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.ok(!h.calls.includes('google.read'), 'nothing read from the copy while the older days load');
+  assert.ok(!h.calls.includes('flush'));
+  open('ready');
+  await started;
+  assert.ok(h.calls.includes('google.read'), 'then the sync runs');
+  h.feature.destroy();
+  // Unavailable: no sync at all, asked for or not. Lost: none by itself; one asked for brings back what is missing.
+  for (const [status, interactive] of [['unavailable', true], ['unavailable', false], ['lost', false]]) {
+    const waiting = setup({ connectedGoogle: true, dirty: true, archive: { ready: async () => status, status: () => status } });
+    waiting.fakes.google.token = true;
+    waiting.fakes.google.until = Date.parse('2026-11-10T16:55:00.000Z');
+    assert.equal(await waiting.feature.syncNow({ interactive, reason: interactive ? 'manual' : 'idle' }), null, status);
+    assert.ok(!waiting.calls.includes('google.read') && !waiting.calls.includes('google.write'), `${status}: the copy is left alone`);
+    assert.match(el.detail.textContent, status === 'lost' ? /missing from this browser’s database, so sync waits/ : /isn’t answering right now, so sync waits/);
+    waiting.feature.destroy();
+  }
+  let settled = 0;
+  const lost = setup({ connectedGoogle: true, dirty: true, archive: { ready: async () => 'lost', status: () => 'lost', settle: () => { settled += 1; } } });
+  lost.fakes.google.token = true;
+  lost.fakes.google.until = Date.parse('2026-11-10T16:55:00.000Z');
+  await lost.feature.syncNow({ interactive: true, reason: 'manual' });
+  assert.ok(lost.calls.includes('google.read'), 'Sync now runs, to bring back what the copy has');
+  lost.feature.destroy();
+  // (The stand-in seal here can't finish a sync: what follows one is read in the source.)
+  const source = (await import('node:fs')).readFileSync(new URL('../src/features/personal-sync.js', import.meta.url), 'utf8');
+  assert.match(source, /const result = await runEngineSync\(conflictResolution, \{ restoreMissing: archive === 'lost' \}\);\n\s*\/\/[^\n]*\n\s*if \(archive === 'lost' && result\?\.status === 'ok' && !result\.refused\?\.length\) await store\.settle\?\.\(\);/, 'then, all of it stored, what is still missing is no longer waited for');
+  assert.equal(settled, 0);
 });

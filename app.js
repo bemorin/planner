@@ -29,7 +29,8 @@ import { showPlanner } from './src/features/app-entrance.js';
 import { openHelpFromAddress } from './src/features/help-link.js';
 import { createBackStack, installBackStack } from './src/ui/back-stack.js';
 import { wireBackButton } from './src/features/back-button.js';
-import { createLocalStore } from './src/state/local-store.js';
+import { createDayStore } from './src/state/day-store.js';
+import { createArchiveKeeper } from './src/features/archive-keeper.js';
 import { BLOCKED_NOTICE, ensureStorage } from './src/state/browser-storage.js';
 import { createSyncLedger } from './src/sync/ledger.js';
 import { restateRetiredBase } from './src/sync/document.js';
@@ -38,7 +39,7 @@ import { createSyncStatus } from './src/features/sync-status.js';
 import { createBlankDay, normalizeDayState } from './src/state/day-state.js';
 import { normalizePlannerSettings } from './src/state/settings-state.js';
 import { forgetRetiredData } from './src/state/retired-keys.js';
-import { IMPORT_ROOM_KEY, buildPlannerBackup, formatStorageBytes, importPlannerBackup, importReport } from './src/state/planner-backup.js';
+import { IMPORT_ROOM_KEY, RECENT_DAYS_BACKUP, backupFileName, buildPlannerBackup, importReport } from './src/state/planner-backup.js';
 import { createSavedDays } from './src/state/saved-days.js';
 import { createPlannerWrites, moveBetweenDays } from './src/state/day-move.js';
 import { openDatePopover, openDateRangePopover } from './src/ui/calendar-popover.js';
@@ -50,8 +51,9 @@ import { createInsightsFeature, renderInsightsEntry } from './src/features/insig
 import { createWeekFeature } from './src/features/week.js';
 import { searchPlannerDays, searchSnippet } from './src/features/search.js';
 import { createJournal } from './src/features/journal.js';
-import { createSaveHealth, LEDGER_KEY, measureStorage, storageBudget, storageLevel } from './src/state/storage-health.js';
-import { FULL_TITLE, createStorageAlert, storageSafetyLine } from './src/features/storage-alert.js';
+import { createSaveHealth, LEDGER_KEY, measureStorage, storageBudget, storageChars, storageLevel } from './src/state/storage-health.js';
+import { ARCHIVE_SETTLE, FULL_TITLE, createStorageAlert, storageSafetyLine } from './src/features/storage-alert.js';
+import { createStorageRecovery } from './src/features/storage-recovery.js';
 import { candidateTriaged, candidatesForSavedDay, needsAttention } from './src/features/unresolved.js';
 import { createWeekReviewFeature } from './src/features/week-review.js';
 import { createWorkspaceFeature } from './src/features/workspace.js';
@@ -79,11 +81,18 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   // them once, not once per day, and what they couldn't store they say themselves (1.39.4).
   let bulkWrites = false;
   // Saves landing again means storage changed: it is measured once more at once, not a minute later.
-  const saveHealth = createSaveHealth({ onChange: change => { renderStorageState(); if (!change.failing) checkStorageSoon({ soon: true }); } });
+  // A refused save makes room at once (1.40): older days move to this browser's database (src/features/archive-keeper.js).
+  const saveHealth = createSaveHealth({ onChange: change => { if (change.failing || change.syncMarkRefused) archiveKeeper.refused(); renderStorageState(); if (!change.failing) checkStorageSoon({ soon: true }); } });
   // Saving never worked in this browser (blocked, or no room at all, as in some private windows): the startup dialog says so.
   const savingUnavailable = () => storageBlocked || (!localSavingAvailable && !saveHealth.saved);
   const syncInUse = () => { const sync = personalSyncFeature?.getState?.(); return !!(sync?.configured && sync.connected); };
-  const store = createLocalStore(browserStorage, {
+  // Older days move out of localStorage once room is needed (1.40, src/state/day-store.js): history waits for them once
+  // (afterHistory), and a day in view that isn't loaded yet is read-only (src/features/archive-keeper.js).
+  const store = createDayStore(browserStorage, {
+    ledgerDays: () => syncLedger.dayMarks(),
+    forgetDays: days => syncLedger.forgetDays(days),
+    onReady: () => archiveKeeper.loaded(),
+    onChange: () => renderStorageState(),
     onMutation: mutation => {
       const marked = syncLedger.recordMutation(mutation);
       if (marked !== null) saveHealth.note({ key: LEDGER_KEY, ok: marked });
@@ -93,6 +102,9 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     // What Import couldn't store, it says itself: not “Not saved”, which is for the person's own changes.
     onWrite: result => { if (result.ok || !bulkWrites) saveHealth.note(result); if (result.ok && result.tracked) retryRefused(); }
   });
+  const archiveKeeper = createArchiveKeeper({ store, storage: browserStorage, blocked: storageBlocked, inView: () => [ymd(), ...(plannerRangeView === 'week' ? planningWeekDates(date).map(day => ymd(day)) : [])], onSaving: () => renderStorageState(), onRoom: () => { retryRefused(); checkStorageSoon({ soon: true }); },
+    reload: () => load(), refresh: () => { journal?.changed(); insightsFeature.invalidate(); progressCache.model = null; renderStorageState(); } });
+  const afterHistory = fn => (...args) => (store.isReady() ? fn(...args) : void store.ready().then(() => fn(...args)));
   const inBulk = fn => {
     bulkWrites = true;
     try { const { value, marked } = syncLedger.deferMarks(fn); if (marked !== null) saveHealth.note({ key: LEDGER_KEY, ok: marked }); return value; } finally { bulkWrites = false; personalSyncFeature?.noteLocalChange?.(); }
@@ -267,6 +279,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   // ---------------------------------------------------------------------------
 
   function render() {
+    archiveKeeper.guard(archiveKeeper.inView().map(day => `daily-planner:${day}`));
     renderDate();
     qs('[data-focus]').value = state.focus;
     autoGrowInlineField(qs('[data-focus]'));
@@ -1564,7 +1577,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     if (activeModal) return;
     if (!settings.installPromptShown && installFeature.maybePrompt()) return;
     // Once, after ten closed days, when this copy has a sponsor page (src/features/sponsor-moment.js).
-    if (sponsorMoment.maybeOpen({ closeDayCount: settings.closeDayCount, busy: tour.isActive() || tour.offerVisible() })) return;
+    if (store.isReady() && sponsorMoment.maybeOpen({ closeDayCount: settings.closeDayCount, busy: tour.isActive() || tour.offerVisible() })) return;
     feedbackFeature.maybePrompt({ closeDayCount: settings.closeDayCount, busy: !settings.onboardingComplete || !!activeModal });
   }
 
@@ -1578,6 +1591,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   }
 
   function renderClosedDayProgress() {
+    if (!store.isReady()) return void store.ready().then(renderClosedDayProgress);
     const wrap = qs('[data-day-closed-progress]');
     if (!wrap) return;
     const year = date.getFullYear();
@@ -2136,14 +2150,14 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     if (clear) clear.hidden = !input?.value;
   }
 
-  function openSearchModal() {
+  const openSearchModal = afterHistory(() => {
     try { store.writeJSON(storageKey(), state); } catch (_) {}
     const input = qs('[data-search-input]');
     if (input) input.value = '';
     renderSearchResults('');
     openModal(qs('[data-search-modal]'), input);
     trackOncePer('day', 'search_opened');
-  }
+  });
 
   function goToSearchResult(button) {
     const targetDay = button.dataset.searchDate;
@@ -2194,11 +2208,12 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
 
   // Data on this device, as How it works opens: the planner's own data (UTF-8 bytes, saved days) and how full storage is.
   function updateStorageUsage() {
-    const output = qs('[data-storage-usage]');
     const usage = measureStorage(browserStorage, { bytes: true });
     storageCheckAt = Date.now();
+    // The bar counts localStorage alone, which is what can refuse a save; the days, both homes (src/state/day-store.js),
+    // and a Download for each recovery snapshot and earlier copy kept aside (src/features/storage-recovery.js).
     storageNow = storageLevel(usage.chars, storageBudget());
-    if (output) output.textContent = `${formatStorageBytes(usage.bytes)} · ${usage.days} saved ${usage.days === 1 ? 'day' : 'days'}`;
+    storageRecovery.render(usage.bytes);
     renderStorageState();
   }
 
@@ -2211,7 +2226,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
       const run = () => {
         storageCheckTimer = 0;
         storageCheckAt = Date.now();
-        storageNow = storageLevel(measureStorage(browserStorage).chars, storageBudget());
+        storageNow = storageLevel(storageChars(browserStorage), storageBudget());
         renderStorageState();
       };
       if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(run, { timeout: 5000 });
@@ -2222,9 +2237,11 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   // The real state of local saving, not the probe's alone: unavailable, a refused change or sync mark, how full.
   function renderStorageState() {
     const unavailable = savingUnavailable();
-    const line = storageSafetyLine({ failing: saveHealth.failing, syncMarkRefused: saveHealth.syncMarkRefused, syncInUse: syncInUse(), available: !unavailable, level: storageNow });
+    const line = storageSafetyLine({ failing: saveHealth.failing, syncMarkRefused: saveHealth.syncMarkRefused, syncInUse: syncInUse(), available: !unavailable, level: storageNow, archive: store.stats(), resetLeft: store.databaseLeft() });
     const status = qs('[data-storage-safety]');
     if (status) { status.textContent = line.text; status.classList.toggle('is-warning', line.warning); }
+    const settle = qs('[data-archive-settle]');
+    if (settle) settle.hidden = store.status() !== 'lost';
     const meter = qs('[data-storage-meter]');
     if (meter) {
       meter.hidden = unavailable || !storageNow;
@@ -2276,11 +2293,14 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     reader.readAsText(file);
   }
   // What the browser refused to store (its storage full) is counted and said: an import is never told complete when it isn't.
-  function confirmImport() {
+  // Older days go straight to this browser's database when localStorage would be too full (1.40, store.importDays()).
+  async function confirmImport() {
     if (!pendingImport) return;
+    const backup = pendingImport;
     try {
-      const report = importReport(inBulk(() => importPlannerBackup(store, pendingImport, { budget: storageBudget() })));
+      // Taken at once: a second click while it runs (it can take seconds) imports nothing twice.
       pendingImport = null;
+      const report = importReport(await store.importDays(backup, { budget: storageBudget(), bulk: inBulk }));
       reloadSettings();
       closeModal(qs('[data-import-modal]'));
       load();
@@ -2289,6 +2309,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
       checkStorageSoon();
       if (!report.complete) alert(report.text);
     } catch (_) {
+      pendingImport = backup;
       alert('The browser blocked the import. Check that site storage is allowed.');
     }
   }
@@ -2297,11 +2318,13 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
 
   // What storage refused is still on screen: save what waits once more, then lay the day on screen and the settings
   // in memory over what storage holds, so the file has everything (the storage notice's Export backup above all).
-  function exportPlannerBackup() {
+  // Every day, archived ones too (1.40); older days that can't be read here are said to be missing from the file.
+  const exportPlannerBackup = afterHistory(() => {
     flushPlannerForSync();
     const backup = buildPlannerBackup(store, { live: { day: ymd(), state, settings } });
-    download(`daily-planner-backup-${ymd(new Date())}.json`, JSON.stringify(backup, null, 2), 'application/json');
-  }
+    download(backupFileName(ymd(new Date()), store.status()), JSON.stringify(backup, null, 2), 'application/json');
+    if (['unavailable', 'lost'].includes(store.status())) setTimeout(() => alert(RECENT_DAYS_BACKUP), 0);
+  });
 
   function flushPlannerForSync() {
     clearTimeout(saveTimer); clearTimeout(settingsTimer);
@@ -2314,10 +2337,11 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     checkStorageSoon(); renderPip();
   }
 
-  function resetPlannerData() {
+  async function resetPlannerData() {
     clearTimeout(saveTimer);
     clearTimeout(settingsTimer);
-    inBulk(() => store.removePrefix('daily-planner:'));
+    // Both homes (1.40): every day removed with its tombstone, then this browser's database cleared.
+    await store.clearAll('daily-planner:', { bulk: inBulk }); archiveKeeper.forget();
     store.withoutMutationTracking(() => { store.remove('daily-planner-ui:trophies-seen'); store.remove(IMPORT_ROOM_KEY); });
     progressCache.model = null;
     reloadSettings();
@@ -2781,7 +2805,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     personalSyncFeature?.syncNow?.({ interactive: false, reason: 'close-day' });
     closeModal(qs('[data-end-day-modal]'));
     updateEndDayButton();
-    checkStorageSoon();
+    checkStorageSoon(); archiveKeeper.idle();
     const nextDate = ymd(date) < ymd(new Date()) ? defaultEndDayTarget() : nextPlanningDateFrom(date);
     const nextKey = ymd(nextDate);
     showDayClosedTransition(nextDate, carried.filter(item => item.targetKey === nextKey).length);
@@ -2883,7 +2907,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   }
 
   function handleEndDayButton() {
-    if (ymd(date) > ymd(new Date())) return;
+    if (ymd(date) > ymd(new Date()) || archiveKeeper.viewPending) return;
     if (state?.endedAt) requestReopenDay();
     else openEndDayModal();
   }
@@ -2987,14 +3011,14 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     return rows;
   }
 
-  function openHorizon(view = 'year', targetDate = date) {
+  const openHorizon = afterHistory((view = 'year', targetDate = date) => {
     horizonYear = Math.max(horizonMinYear(), targetDate.getFullYear());
     horizonMonth = targetDate.getMonth();
     renderHorizon();
     openModal(qs('[data-horizon-modal]'));
     horizonView.onOpen();
     trackOncePer('day', 'horizon_opened');
-  }
+  });
 
   function renderHorizon(options) { horizonView.render(options); }
 
@@ -3314,7 +3338,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     checkStorageSoon();
   }
 
-  function openUnresolvedModal(options = {}) {
+  const openUnresolvedModal = afterHistory((options = {}) => {
     const returnTo = options.returnTo || null;
     openWorkPendingPlans.clear();
     renderOpenWork();
@@ -3322,7 +3346,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     openWorkReturnScrollTop = returnTo ? (qs('.modal__scroll', returnTo)?.scrollTop || 0) : 0;
     openModal(qs('[data-open-work-modal]'));
     trackOncePer('day', 'unresolved_opened');
-  }
+  });
 
   const yearPrintData = year => ({ year, data: horizonYearData(year), keyDates: horizonYearKeyDates(year), weekStartsOn: settings.weekStartsOn, progress: progressFor(year), today: new Date() });
   const printFeature = createPrintFeature({
@@ -3369,6 +3393,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     mirrorTheme: doc => themeController.mirrorTo(doc),
     getDate: () => date,
     getState: () => state,
+    isPending: () => store.pending(storageKey()),
     ymd,
     weekStartsOn: () => settings.weekStartsOn,
     minDateKey: '2026-01-01',
@@ -3521,10 +3546,12 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
     openModal(help, title);
     requestAnimationFrame(() => qs('.storage-card', help)?.scrollIntoView?.({ block: 'center' }));
   };
-  storageAlert = createStorageAlert({ health: saveHealth, level: () => storageNow, syncInUse, unavailable: savingUnavailable, exportBackup: exportPlannerBackup, openData: openStorageCard, onLayout: () => requestAnimationFrame(fitHeaderDate) });
+  // Restore (an earlier version kept aside) may change the day on screen: drawn again from storage.
+  const storageRecovery = createStorageRecovery({ store, download, onRestore: () => { load(); updateStorageUsage(); }, olderTabOpen: () => archiveKeeper.olderTabOpen() });
+  storageAlert = createStorageAlert({ health: saveHealth, level: () => storageNow, saving: () => archiveKeeper.saving, syncInUse, unavailable: savingUnavailable, resetLeft: () => store.databaseLeft(), aside: () => store.lastAside(), exportBackup: exportPlannerBackup, openData: openStorageCard, onLayout: () => requestAnimationFrame(fitHeaderDate) });
   journal = createJournal({ store, liveDay: () => ymd(), liveState: () => state, openModal, closeModal, openDay: key => { date = dateFromKey(key); load(); } });
-  const openJournal = () => { journal.open(); trackOncePer('day', 'journal_opened'); };
-  const openStats = () => { statsFeature.ensureWeek(); insightsFeature.invalidate(); renderStats(); openModal(qs('[data-stats-modal]')); trackOncePer('day', 'stats_opened'); };
+  const openJournal = afterHistory(() => { journal.open(); trackOncePer('day', 'journal_opened'); });
+  const openStats = afterHistory(() => { statsFeature.ensureWeek(); insightsFeature.invalidate(); renderStats(); openModal(qs('[data-stats-modal]')); trackOncePer('day', 'stats_opened'); });
   qs('[data-journal-open]').addEventListener('click', openJournal);
   qs('[data-open-work-open]').addEventListener('click', openUnresolvedModal);
   qs('[data-horizon-scroll]')?.addEventListener('scroll', () => closeAllPopovers(), { passive: true });
@@ -3717,7 +3744,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
       g: () => toggleModalShortcut('[data-settings-modal]', () => { renderCategorySettings(); renderSettingsHours(); renderPlanningWeek(); openModal(qs('[data-settings-modal]')); }),
       h: () => toggleModalShortcut('[data-help-modal]', () => { updateStorageUsage(); openModal(qs('[data-help-modal]')); }),
       d: () => { if (ymd(date) <= ymd(new Date())) handleEndDayButton(); },
-      t: () => openBlockModal(null, { start: recommendedStart() })
+      t: () => { if (!archiveKeeper.viewPending) openBlockModal(null, { start: recommendedStart() }); }
     };
     const action = shortcuts[key];
     if (action) { e.preventDefault(); action(); }
@@ -3735,6 +3762,8 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   qs('[data-import-open]')?.addEventListener('click', openImportPicker);
   qs('[data-import-file]')?.addEventListener('change', e => { handleImportFile(e.target.files?.[0]); e.target.value = ''; });
   qs('[data-import-confirm]')?.addEventListener('click', confirmImport);
+  // Older days missing (1.40): carrying on without them lets older days move again; a sync or an import still brings them back.
+  qs('[data-archive-settle]')?.addEventListener('click', () => requestConfirmation({ eyebrow: 'Older days', ...ARCHIVE_SETTLE, confirmLabel: 'Carry on', action: async () => { await store.settle(); updateStorageUsage(); } }));
 
   qs('[data-confirm-action]')?.addEventListener('click', () => { const action = pendingConfirmAction; pendingConfirmAction = null; closeModal(qs('[data-confirm-modal]')); action?.(); });
   qs('[data-reopen-confirm]')?.addEventListener('click', () => { closeModal(qs('[data-reopen-modal]')); reopenClosedDay(); });
@@ -3800,7 +3829,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   const syncGuide = createSyncGuide({ openModal, closeModal, openPrivacy: privacyNotice.open, clouds: () => personalSyncFeature.clouds || [], openSyncSettings });
   const feedbackFeature = createFeedbackFeature({ openModal, closeModal, openPrivacy: privacyNotice.open });
   // The quarter nudge after closing a day opens its check-in in Horizon.
-  const openQuarterCheckIn = quarter => { if (qs('[data-horizon-modal]').hidden) openHorizon('year', date); horizonView.openQuarter(quarter); };
+  const openQuarterCheckIn = afterHistory(quarter => { if (qs('[data-horizon-modal]').hidden) openHorizon('year', date); horizonView.openQuarter(quarter); });
   // The planner tour (src/features/tour.js): once after setup, offered once to earlier users, always in How it works and More.
   const tour = createTour({ getActiveModal: () => activeModal, closeModal, closePopovers: closeAllPopovers, setPane: view => setMobileView(view), range: () => plannerRangeView, setRange: view => { if (view !== plannerRangeView) toggleWeekView(); }, isReady: () => !!settings.onboardingComplete });
   // The first time each main dialog opens, a short guide inside it (src/features/first-use.js).
@@ -3831,6 +3860,7 @@ import { parseChecklistLine as parseBlockChecklistLine, renderBlockNotesPreview,
   });
   // The first day is drawn: the opening seal leaves and the planner shows, with its entrance once per session (src/features/app-entrance.js).
   // Counted from when it shows (the seal gone): the tour's offer, then, once per feature release, what's new and a request for feedback (never over another dialog).
+  archiveKeeper.start();
   showPlanner({ dialog: !settings.onboardingComplete, shown: () => {
     setTimeout(() => tour.maybeOffer(), 1600);
     setTimeout(() => feedbackFeature.maybePrompt({ closeDayCount: settings.closeDayCount, busy: !settings.onboardingComplete || !!activeModal || tour.isActive() || tour.offerVisible() }), 2400);

@@ -123,7 +123,21 @@ const relativeTime = (iso, now) => {
 };
 export { relativeTime as relativeSyncLabel };
 
-export function conflictSummary(count) {
+/**
+ * What a sync stopped on, in plain words: `conflicts` is how many records, or (1.40.1) their ids, which say whether
+ * it is the settings, days, or both.
+ */
+export function conflictSummary(conflicts) {
+  if (Array.isArray(conflicts)) {
+    if (!conflicts.length) return '';
+    const settings = conflicts.includes('settings');
+    const days = conflicts.filter(id => String(id).startsWith('day:')).length;
+    const dayWords = days === 1 ? 'one day' : `${days.toLocaleString('en')} days`;
+    if (settings && !days) return 'Your settings differ between this device and your copy.';
+    if (settings) return `Your settings and ${dayWords} differ between this device and your copy.`;
+    return days === 1 ? 'One day was edited on both devices.' : `${days.toLocaleString('en')} days were edited on both devices.`;
+  }
+  const count = Number(conflicts) || 0;
   if (count <= 0) return '';
   if (count === 1) return 'Some days were edited on both devices.';
   return `${count} items were edited on both devices.`;
@@ -190,7 +204,7 @@ export function syncView({
   // A passphrase form open below: its submit is the one main button.
   const formOpen = panel === 'change' || panel === 'protect';
   const since = sinceLabel(lastSyncedAt, now, { clock });
-  if (conflicts) {
+  if (Array.isArray(conflicts) ? conflicts.length : conflicts) {
     return { ...base, state: 'attention', tone: 'wait', dot: 'wait', layout: 'stacked', status: 'Sync needs attention', detail: conflictSummary(conflicts), primary: formOpen ? '' : reconnect ? `Reconnect ${name}` : 'Sync now', primaryStyle: 'secondary', panel, folder };
   }
   if (reconnect && dirty) {

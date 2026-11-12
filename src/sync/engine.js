@@ -2,6 +2,7 @@ import { decideRecordSync } from './merge.js';
 import { createSyncDocument, documentRecord, localSyncRecords, normalizeSyncDocument, syncedRecords } from './document.js';
 import { sameCopy } from './ledger.js';
 import { recordIdToPlannerKey } from './records.js';
+import { freshRecords, nothingDay } from './fresh.js';
 
 function allRecordIds(localRecords, remoteRecords, ledger) {
   return [...new Set([
@@ -30,6 +31,12 @@ function allRecordIds(localRecords, remoteRecords, ledger) {
  * - The ledger is read once per sync, as it starts (ledger.session(), 1.39.4), and what the sync agrees on is
  *   written in one go: the pulls applied, before the copy is written; what was sent, once it is. With years of
  *   history that is the difference between a fraction of a second and minutes.
+ * - Reset local data (1.40.1) starts a new generation (./ledger.js GENERATION_KEY): a sync begun before it stops at its
+ *   next step (an error with code 'reset'), and never applies a pull nor writes the ledger afterwards.
+ * - A first connection (no base at all) to a copy that holds something, from a browser with nothing of its own
+ *   (./fresh.js: no day that holds anything but onboarding's untouched sample, settings as the defaults and onboarding
+ *   leave them), takes the copy, with no conflict to settle (1.40.1): what the copy holds is pulled, and this browser's
+ *   days of nothing (blank, or the sample alone) that the copy lacks are removed here, never sent to it.
  */
 export function createSyncEngine({ store, ledger, recoveryStore = null, now = () => new Date() } = {}) {
   if (!store || !ledger) throw new Error('Sync engine requires store and ledger.');
@@ -42,18 +49,24 @@ export function createSyncEngine({ store, ledger, recoveryStore = null, now = ()
 
   async function sync(provider, { buildBackup, beforeApply, afterApply, conflictResolution = null, movedTo, applyPulls = true, restoreMissing = false } = {}) {
     if (!provider?.read || !provider?.write) throw new Error('Sync provider is not configured.');
+    // Reset local data since this sync began: it stops at its next step, and writes nothing here.
+    const began = typeof ledger.generation === 'function' ? ledger.generation() : '';
+    const live = () => typeof ledger.generation !== 'function' || ledger.generation() === began;
+    const stillLive = () => { if (!live()) throw Object.assign(new Error('Reset local data ran meanwhile: this sync stops.'), { code: 'reset' }); };
     // Every day this device keeps, readable first (1.40, src/state/day-store.js): an older day not loaded yet, or that
     // can't be read, would look deleted here and be removed from the copy. Lost (the archive found empty), a sync runs
     // only to bring back what is missing (`restoreMissing`).
     const archive = typeof store.ready === 'function' ? await store.ready() : null;
     if (archive === 'unavailable' || (archive === 'lost' && !restoreMissing)) throw Object.assign(new Error('Your older days can’t be read in this browser right now, so sync waits.'), { code: 'archive', archive });
     const remotePayload = await provider.read();
+    stillLive();
     // This device's side, alone (1.40, src/state/day-store.js exclusive()): no pass, pull or import in any tab moves days
     // while its records are read and the pulls applied, and days another tab moved are read first, so a move never
     // looks like a deletion here.
     const alone = typeof store.exclusive === 'function' ? fn => store.exclusive(fn) : fn => fn(null);
     const side = await alone(async lock => {
       if (lock && typeof store.ready === 'function') await store.ready({ lock });
+      stillLive();
       const marks = ledger.session();
       // Which copy this is (sealed transports say; a bare provider doesn't, and is taken as the same copy).
       const copy = remotePayload?.copy || null;
@@ -75,6 +88,12 @@ export function createSyncEngine({ store, ledger, recoveryStore = null, now = ()
       const pulled = [];
       const pushed = [];
       const marked = [];
+      // A first connection from a browser with nothing of its own: the copy wins (1.40.1, ./fresh.js).
+      const firstConnection = !Object.values(marks.read().records || {}).some(entry => entry?.lastSyncedHash);
+      const copyHolds = Object.values(remoteRecords).some(record => record && !record.deletedAt);
+      const takeCopy = !conflictResolution && firstConnection && copyHolds && freshRecords(localRecords);
+      // This browser's days of nothing the copy lacks, removed here rather than sent (a first connection taking the copy).
+      const dropped = [];
 
       for (const recordId of allRecordIds(localRecords, remoteRecords, marks)) {
         const localRecord = localRecords[recordId] || null;
@@ -83,15 +102,20 @@ export function createSyncEngine({ store, ledger, recoveryStore = null, now = ()
         const lastSyncedHash = entry?.lastSyncedHash || null;
         let decision = decideRecordSync({ localRecord, remoteRecord, lastSyncedHash });
         // Missing here while it still has a base, and in the copy: not a deletion (deletions leave a tombstone) but a
-        // record this browser lost. With `restoreMissing` (1.40: its archive cleared) any record, and always a day (a
-        // day that vanished without a tracked removal, e.g. a freed day whose manifest never landed): fetched back,
-        // never removed from the copy.
-        if (!localRecord && remoteRecord && !remoteRecord.deletedAt && lastSyncedHash && (restoreMissing || recordId.startsWith('day:'))) decision = { action: 'pull-remote' };
+        // record this browser lost (a day that vanished without a tracked removal, e.g. a freed day whose manifest never
+        // landed; the settings too, 1.40.1): fetched back, never removed from the copy, with or without `restoreMissing`.
+        if (!localRecord && remoteRecord && !remoteRecord.deletedAt && lastSyncedHash) decision = { action: 'pull-remote' };
+        if (decision.action === 'conflict' && takeCopy) decision = { action: 'pull-remote' };
 
         if (decision.action === 'conflict' && conflictResolution === 'local') decision = { action: 'push-local' };
         if (decision.action === 'conflict' && conflictResolution === 'remote') decision = { action: 'pull-remote' };
         if (decision.action === 'conflict') {
           conflicts.push(recordId);
+          continue;
+        }
+
+        if (takeCopy && decision.action === 'push-local' && localRecord && !localRecord.deletedAt && !remoteRecord && recordId.startsWith('day:') && nothingDay(localRecord.value, recordId.slice(4))) {
+          dropped.push(recordId);
           continue;
         }
 
@@ -114,17 +138,23 @@ export function createSyncEngine({ store, ledger, recoveryStore = null, now = ()
       if (conflicts.length) {
         marks.commit();
         await snapshot('sync-conflict', buildBackup);
-        return { conflict: { status: 'conflict', conflicts, pulled: [], pushed: [], copyChanged, movedTo: remoteMovedTo } };
+        return { conflict: { status: 'conflict', conflicts, pulled: [], pushed: [], copyChanged, movedTo: remoteMovedTo, first: firstConnection } };
       }
 
       const toApply = applyPulls ? pulled : [];
+      const toDrop = applyPulls ? dropped : [];
       if (toApply.length) await snapshot('before-remote-sync', buildBackup);
       if (typeof beforeApply === 'function') await beforeApply({ pulled: toApply, pushed });
+      stillLive();
 
       // A record the browser refuses to store (its storage full, 1.39.3) is not applied: its base stays as it was, so
       // this device's older version is never taken for the newer one (and sent over it), and the next sync pulls it
       // again. The result names it in `refused`.
       const refused = [];
+      if (toDrop.length) {
+        store.withoutMutationTracking(() => toDrop.forEach(recordId => store.remove(recordIdToPlannerKey(recordId))));
+        toDrop.forEach(recordId => marks.forget(recordId));
+      }
       if (toApply.length && typeof store.placeMany === 'function') {
         // A day store (1.40): older days pulled go straight to the archive, verified, when that is where they belong.
         const entries = [];
@@ -137,6 +167,7 @@ export function createSyncEngine({ store, ledger, recoveryStore = null, now = ()
           ids.set(key, recordId);
         }
         const placed = await store.placeMany(entries, { lock });
+        stillLive();
         for (const key of placed?.refused || []) if (ids.has(key)) refused.push(ids.get(key));
       } else if (toApply.length) {
         store.withoutMutationTracking(() => {
@@ -157,11 +188,11 @@ export function createSyncEngine({ store, ledger, recoveryStore = null, now = ()
         const record = remoteRecords[recordId];
         if (record) marks.markRemoteApplied(recordId, { hash: record.hash, deletedAt: record.deletedAt });
       }
-      if (applied.length) marks.commit();
-      return { marks, copy, copyChanged, localRecords, remoteRecords, nextRemote, remoteMovedTo, nextMovedTo, pushed, marked, applied, refused };
+      if (applied.length || toDrop.length) marks.commit();
+      return { marks, copy, copyChanged, localRecords, remoteRecords, nextRemote, remoteMovedTo, nextMovedTo, pushed, marked, applied, refused, dropped: toDrop };
     });
     if (side.conflict) return side.conflict;
-    const { marks, copy, copyChanged, localRecords, remoteRecords, nextRemote, remoteMovedTo, nextMovedTo, pushed, marked, applied, refused } = side;
+    const { marks, copy, copyChanged, localRecords, remoteRecords, nextRemote, remoteMovedTo, nextMovedTo, pushed, marked, applied, refused, dropped } = side;
 
     // `rewrite`: the copy is sealed for the first time or under a new passphrase (./protection.js), so it is written whole.
     const remoteChanged = pushed.length > 0 || !remotePayload?.exists || !!remotePayload?.rewrite || nextMovedTo !== remoteMovedTo;
@@ -170,14 +201,15 @@ export function createSyncEngine({ store, ledger, recoveryStore = null, now = ()
       try {
         await provider.write(nextDocument, { fileId: remotePayload?.fileId || '' });
       } catch (error) {
-        // The bases reset for another copy stand, as they did when they were written at once.
-        try { marks.commit(); } catch (_) {}
+        // The bases reset for another copy stand, as they did when they were written at once (never after a Reset).
+        if (live()) { try { marks.commit(); } catch (_) {} }
         if (error && typeof error === 'object' && applied.length) error.pulled = [...applied];
         if (error && typeof error === 'object' && refused.length) error.refused = [...refused];
         throw error;
       }
     }
 
+    stillLive();
     for (const recordId of pushed) {
       const record = localRecords[recordId];
       if (record) marks.markSynced(recordId, { hash: record.hash, deletedAt: record.deletedAt });
@@ -192,9 +224,10 @@ export function createSyncEngine({ store, ledger, recoveryStore = null, now = ()
       marks.setCopy({ cloud: copy.cloud, id });
     }
     marks.commit();
+    stillLive();
 
     if (typeof afterApply === 'function') await afterApply({ pulled: applied, pushed });
-    return { status: 'ok', conflicts: [], pulled: applied, pushed, refused, copyChanged, movedTo: nextMovedTo };
+    return { status: 'ok', conflicts: [], pulled: applied, pushed, refused, copyChanged, movedTo: nextMovedTo, dropped };
   }
 
   return { sync };

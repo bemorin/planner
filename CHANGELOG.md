@@ -2,6 +2,14 @@
 
 All notable changes to Daily Planner are recorded here. Versions follow `major.minor.patch`; a feature release bumps the minor number.
 
+## 1.40.1 — 2026-11-12
+
+Reset local data touches only this browser.
+
+- **Reset local data no longer reaches your other devices.** It removes your plans from this browser only: your copy in Dropbox or Google Drive and your other devices keep everything. If Personal sync is connected, Reset turns it off in this browser, and says so, even while a sync is under way, or when this browser is full; connect again to bring your plans back. While the planner is open in another tab, Reset waits: close it there first.
+- **Connecting again brings your plans back as they are.** When this browser has nothing of its own yet, after a Reset or on a new device (the first block the planner offers, left as it is, counts as nothing), your copy’s settings and days come back with nothing to choose. When there is a choice, the card says whether it is about your settings or your days, and what each choice keeps and replaces.
+- **An earlier version kept aside is easier to follow.** If an older planner tab saves over a day you restored, the header tells you again, and the same version is never kept twice.
+
 ## 1.40.0 — 2026-11-12
 
 Room for many more years of plans.

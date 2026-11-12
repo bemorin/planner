@@ -289,11 +289,11 @@ test('app.js: a refused save makes room at once, Close day at idle, the header h
   assert.match(app, /ledgerDays: \(\) => syncLedger\.dayMarks\(\),\n\s*forgetDays: days => syncLedger\.forgetDays\(days\),/);
 });
 
-test('Reset local data: the snapshot taken before the first pass goes with the planner; sync’s own snapshots stay', async () => {
+test('Reset local data (1.40.1): every recovery snapshot goes with the planner, sync’s own too: each holds days', async () => {
   const kept = [{ id: 'a', reason: 'before-archive' }, { id: 'b', reason: 'before-remote-sync' }, { id: 'c', reason: 'sync-conflict' }];
   const recoveryStore = { remove: async match => { const doomed = kept.filter(match); doomed.forEach(item => kept.splice(kept.indexOf(item), 1)); return doomed.length; } };
   const keeper = createArchiveKeeper({ store: {}, recoveryStore });
-  assert.equal(await keeper.forget(), 1);
-  assert.deepEqual(kept.map(item => item.reason), ['before-remote-sync', 'sync-conflict']);
-  assert.match(read('app.js'), /await store\.clearAll\('daily-planner:', \{ bulk: inBulk \}\); archiveKeeper\.forget\(\);/);
+  assert.equal(await keeper.forget(), 3);
+  assert.deepEqual(kept, []);
+  assert.match(read('app.js'), /forgetSnapshots: \(\) => archiveKeeper\.forget\(\), otherTabs: \(\) => archiveKeeper\.otherTabsOpen\(\) \}\);/);
 });

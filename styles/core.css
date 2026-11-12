@@ -2506,6 +2506,10 @@ h3,
 .danger-link-button:hover,
 .danger-link-button:focus-visible { outline: 0; text-decoration: underline; text-underline-offset: 3px; }
 
+/* 1.40.1: when Personal sync is connected, Reset says it is turned off in this browser, and the copy keeps everything. */
+.reset-sync-note { margin-top: .45rem; color: var(--ink); }
+/* While another planner tab is open, Reset waits for it (1.40.1). */
+.reset-blocked { margin-top: .45rem; color: var(--danger); font-weight: 600; }
 .reset-warning { display: grid; gap: 4px; margin: .2rem 0 1rem; padding: .75rem .8rem; border: 1px solid color-mix(in srgb, var(--danger) 22%, var(--line)); border-radius: 9px; background: color-mix(in srgb, var(--danger) 5%, var(--surface)); }
 
 .reset-warning strong { font-size: .74rem; }

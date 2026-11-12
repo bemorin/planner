@@ -61,7 +61,8 @@ export function alertView(state, { now = new Date(), clock } = {}) {
       secondary: ''
     };
   }
-  if (state.conflicts > 0) {
+  // How many records the last sync stopped on: a count, or (1.40.1) their ids.
+  if ((Array.isArray(state.conflicts) ? state.conflicts.length : Number(state.conflicts) || 0) > 0) {
     return {
       kind: 'conflict',
       pill: 'Sync needs a choice',

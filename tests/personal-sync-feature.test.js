@@ -274,6 +274,33 @@ test('sync waits for the older days (1.40): it runs once they are read, and not 
   lost.feature.destroy();
   // (The stand-in seal here can't finish a sync: what follows one is read in the source.)
   const source = (await import('node:fs')).readFileSync(new URL('../src/features/personal-sync.js', import.meta.url), 'utf8');
-  assert.match(source, /const result = await runEngineSync\(conflictResolution, \{ restoreMissing: archive === 'lost' \}\);\n\s*\/\/[^\n]*\n\s*if \(archive === 'lost' && result\?\.status === 'ok' && !result\.refused\?\.length\) await store\.settle\?\.\(\);/, 'then, all of it stored, what is still missing is no longer waited for');
+  assert.match(source, /const result = await runEngineSync\(conflictResolution, \{ restoreMissing: archive === 'lost' \}\);\n\s*if \(!live\(\)\) return null;\n\s*\/\/[^\n]*\n\s*if \(archive === 'lost' && result\?\.status === 'ok' && !result\.refused\?\.length\) await store\.settle\?\.\(\);/, 'then, all of it stored, what is still missing is no longer waited for');
   assert.equal(settled, 0);
+});
+
+test('Reset local data (1.40.1): forgetHere() turns sync off in this browser, as in a new one, and never touches the copy', async () => {
+  const h = setup({ connectedGoogle: true, dirty: true });
+  h.storage.setItem('daily-planner-sync:cloud', 'google');
+  h.storage.setItem('daily-planner-sync:protection', JSON.stringify({ salt: 'abc', iterations: 1 }));
+  assert.equal(h.feature.getState().connected, true);
+  h.calls.length = 0;
+  assert.equal(await h.feature.forgetHere(), 'Google Drive', 'the cloud it was connected to, for nothing else to say');
+  assert.ok(h.calls.includes('google.clearToken') && h.calls.includes('dropbox.clearToken'), 'both clouds’ access forgotten');
+  assert.ok(h.calls.includes('forget-key'), 'the seal’s key material forgotten');
+  assert.deepEqual(h.calls.filter(call => /\.(read|write)$/.test(call)), [], 'the copy never read nor written');
+  for (const name of ['daily-planner-sync:ledger', 'daily-planner-sync:google', 'daily-planner-sync:dropbox', 'daily-planner-sync:cloud']) assert.equal(h.storage.getItem(name), null, name);
+  assert.equal(h.feature.getState().connected, false);
+  assert.equal(h.feature.getState().dirtyCount, 0);
+  assert.equal(await h.feature.syncNow({ interactive: true }), null, 'and no sync runs after it');
+  assert.deepEqual(h.calls.filter(call => /\.(read|write)$/.test(call)), []);
+  // Not connected: nothing to name.
+  const idle = setup();
+  assert.equal(await idle.feature.forgetHere(), '');
+  idle.feature.destroy();
+  h.feature.destroy();
+  const source = (await import('node:fs')).readFileSync(new URL('../src/features/personal-sync.js', import.meta.url), 'utf8');
+  assert.match(source, /if \(busy \|\| connecting \|\| resetting\) return null;/, 'none starts while it runs');
+  // 1.40.1 fix pass: no wait; the ledger's new generation first, so whatever began before stops at its next step.
+  // Pass 2 (N2): the keys before the generation, and the connection forgotten whatever happens.
+  assert.match(source, /resetting = true;\n\s*try \{\n(?:\s*\/\/[^\n]*\n)*\s*try \{ ledger\.reset\(\); \} catch \(_\) \{\}\n\s*\} finally \{\n\s*await forgetConnection\(\);/);
 });
